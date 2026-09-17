@@ -11,7 +11,12 @@ final class TheWalkTests: XCTestCase {
     }
 
     private func waitFor(_ element: XCUIElement, _ timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(element.waitForExistence(timeout: timeout), "missing \(element)", file: file, line: line)
+        let found = element.waitForExistence(timeout: timeout)
+        if !found {
+            // The whole accessibility tree, in the xcodebuild log, so a failure can be read without the result bundle.
+            print("=== accessibility hierarchy when \(element) was missing ===\n\(app.debugDescription)\n=== end hierarchy ===")
+        }
+        XCTAssertTrue(found, "missing \(element)", file: file, line: line)
     }
 
     /// Waits for the element, scrolls it into view if needed, and taps it.

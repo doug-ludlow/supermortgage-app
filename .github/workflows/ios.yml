@@ -77,6 +77,12 @@ jobs:
         run: |
           if [ -d build/walk.xcresult ]; then
             xcrun xcresulttool export attachments --path build/walk.xcresult --output-path build/walk-screenshots || true
+            for f in build/walk-screenshots/*.txt; do
+              [ -f "$f" ] || continue
+              echo "===== $f ====="
+              head -c 60000 "$f"
+              echo
+            done
           fi
       - name: Upload the walk's screenshots
         if: always()
