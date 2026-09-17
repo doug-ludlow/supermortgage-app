@@ -16,6 +16,12 @@ xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destinati
 
 The first command opens the project (press ⌘R to run on the iPhone 15 simulator). The second builds it from the command line. The third runs the unit tests (`SupermortgageTests`) and the walk (`SupermortgageUITests`, one test that taps through the whole product in the order of §8 of the spec).
 
+Xcode 16 does not create an "iPhone 15" simulator by default (its stock devices are the iPhone 16 family). If the destination is not found, add one once:
+
+```sh
+xcrun simctl create "iPhone 15" "iPhone 15"
+```
+
 To run only the walk:
 
 ```sh
