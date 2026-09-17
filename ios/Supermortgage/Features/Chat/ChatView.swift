@@ -27,7 +27,6 @@ struct ChatView: View {
             .onAppear { scrollToBottom(proxy, animated: false) }
             .onChange(of: model.chat) { scrollToBottom(proxy, animated: true) }
         }
-        .accessibilityIdentifier("screen.chat")
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {

@@ -16,6 +16,5 @@ struct SetupView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
         .screenEnter()
-        .accessibilityIdentifier("screen.setup")
     }
 }

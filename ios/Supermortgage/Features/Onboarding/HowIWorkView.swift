@@ -34,7 +34,6 @@ struct HowIWorkView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 30)
         .screenEnter()
-        .accessibilityIdentifier("screen.know")
     }
 
     /// The two link-styled words do nothing.

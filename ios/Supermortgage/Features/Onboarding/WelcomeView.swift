@@ -32,6 +32,5 @@ struct WelcomeView: View {
         }
         .screenEnter()
         .onAppear { model.welcomeAppeared() }
-        .accessibilityIdentifier("screen.welcome")
     }
 }

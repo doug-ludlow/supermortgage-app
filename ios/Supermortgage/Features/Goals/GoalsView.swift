@@ -50,7 +50,6 @@ struct GoalsView: View {
                 .accessibilityIdentifier("goal.new.\(category.title)")
             }
         }
-        .accessibilityIdentifier("screen.goals")
     }
 
     private var trackingCard: some View {

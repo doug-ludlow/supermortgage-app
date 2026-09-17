@@ -47,7 +47,6 @@ struct HeaderBar: View {
                         .overlay(Capsule().strokeBorder(t.surface, lineWidth: 1))
                         .shadow(color: .black.opacity(t.shadowOpacity), radius: 16, x: 0, y: 8)
                         .padding(.top, -9)
-                        .accessibilityIdentifier("header.name")
                     Text(model.snippet)
                         .textStyle(.meta)
                         .foregroundStyle(t.muted)
@@ -55,13 +54,11 @@ struct HeaderBar: View {
                         .truncationMode(.tail)
                         .frame(maxWidth: 260, minHeight: 16)
                         .padding(.top, 6)
-                        .accessibilityIdentifier("header.snippet")
                 }
                 .frame(width: 280)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
-            .accessibilityLabel("Agent status, activity and permissions")
             .accessibilityIdentifier("header.avatar")
         }
         .frame(maxWidth: .infinity)

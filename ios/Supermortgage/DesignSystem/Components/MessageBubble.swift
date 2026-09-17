@@ -44,7 +44,6 @@ struct MessageBubble: View {
             topTrailingRadius: 22,
             style: .continuous))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(isUser ? "You" : "Agent")
     }
 
     @ViewBuilder

@@ -153,9 +153,10 @@ final class TheWalkTests: XCTestCase {
         tap(app.buttons["header.avatar"], 10)
         tap(app.buttons["agent.pause"], 10)
         tap(app.buttons["sheet.close"], 10)
-        let snippet = app.staticTexts["header.snippet"]
-        waitFor(snippet, 10)
-        XCTAssertEqual(snippet.label, "Paused")
+        // The avatar button's label combines the name pill and the snippet line under it.
+        let avatar = app.buttons["header.avatar"]
+        waitFor(avatar, 10)
+        XCTAssertTrue(avatar.label.contains("Paused"), "header should read Paused, got: \(avatar.label)")
         snap("paused-dark")
     }
 }

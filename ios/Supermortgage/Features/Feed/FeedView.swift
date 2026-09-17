@@ -26,7 +26,6 @@ struct FeedView: View {
                 }
             }
         }
-        .accessibilityIdentifier("screen.feed")
     }
 
     private var emptyState: some View {
@@ -46,7 +45,6 @@ struct FeedView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 170)
-        .accessibilityIdentifier("feed.empty")
     }
 }
 

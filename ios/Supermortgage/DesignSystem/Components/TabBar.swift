@@ -30,6 +30,5 @@ struct TabBar: View {
         .shadow(color: .black.opacity(0.05), radius: 17, x: 0, y: 10)
         .padding(.horizontal, 5)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Main navigation")
     }
 }

@@ -64,7 +64,6 @@ struct WorkView: View {
                 }
             }
         }
-        .accessibilityIdentifier("screen.work")
     }
 }
 

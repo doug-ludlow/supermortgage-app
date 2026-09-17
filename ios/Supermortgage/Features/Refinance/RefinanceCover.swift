@@ -136,7 +136,6 @@ private struct RefinanceCoverContent: View {
                 .presentationBackground(model.theme == .dark ? Tokens.dark.paper : Tokens.light.paper)
         }
         .screenEnter()
-        .accessibilityIdentifier("screen.refinance")
     }
 
     /// `.header`: back chevron, the "s" mark over the "Supermortgage" pill, Invite.

@@ -29,7 +29,6 @@ struct ArtifactsView: View {
                 }
             }
         }
-        .accessibilityIdentifier("screen.artifacts")
     }
 }
 
