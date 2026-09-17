@@ -91,13 +91,19 @@ jobs:
           name: walk-screenshots
           path: build/walk-screenshots
           if-no-files-found: ignore
-      - name: Zip the simulator build
+      - name: Build a universal simulator app (arm64 + x86_64, for Appetize.io)
         if: always()
         run: |
-          APP=$(find build/DerivedData/Build/Products -maxdepth 2 -name 'Supermortgage.app' -type d | head -1)
-          if [ -n "$APP" ]; then
-            ditto -c -k --keepParent "$APP" build/Supermortgage-simulator.app.zip
-          fi
+          set -o pipefail
+          xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
+            -configuration Debug -sdk iphonesimulator \
+            -derivedDataPath build/UniversalDerivedData \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          APP=$(find build/UniversalDerivedData/Build/Products -maxdepth 2 -name 'Supermortgage.app' -type d | head -1)
+          ditto -c -k --keepParent "$APP" build/Supermortgage-simulator.app.zip
+          lipo -info "$APP/Supermortgage"
       - name: Upload the simulator build
         if: always()
         uses: actions/upload-artifact@v4
@@ -105,6 +111,36 @@ jobs:
           name: Supermortgage-simulator-app
           path: build/Supermortgage-simulator.app.zip
           if-no-files-found: ignore
+      - name: Publish to Appetize.io
+        if: always()
+        env:
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          APPETIZE_PUBLIC_KEY: ${{ secrets.APPETIZE_PUBLIC_KEY }}
+        run: |
+          if [ ! -f build/Supermortgage-simulator.app.zip ]; then
+            echo "No simulator build to publish"; exit 0
+          fi
+          if [ -z "$APPETIZE_API_TOKEN" ]; then
+            echo "No APPETIZE_API_TOKEN secret set — skipping the Appetize.io upload."
+            echo "Add it under Settings → Secrets and variables → Actions to publish every push."
+            exit 0
+          fi
+          URL="https://api.appetize.io/v1/apps"
+          if [ -n "$APPETIZE_PUBLIC_KEY" ]; then URL="$URL/$APPETIZE_PUBLIC_KEY"; fi
+          RESPONSE=$(curl -sS --fail-with-body -X POST "$URL" \
+            -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@build/Supermortgage-simulator.app.zip" \
+            -F "platform=ios" \
+            -F "note=supermortgage-app ${GITHUB_SHA::7}") || { echo "Appetize upload failed: $RESPONSE"; exit 1; }
+          echo "$RESPONSE" | python3 -c '
+          import json, sys
+          r = json.load(sys.stdin)
+          key = r.get("publicKey", "")
+          print("Appetize public key:", key)
+          print("Open the app at:", r.get("publicURL") or r.get("appURL") or ("https://appetize.io/app/" + key))
+          print("Manage it at:", r.get("manageURL", ""))
+          '
+          echo "::notice title=Appetize.io::$(echo "$RESPONSE" | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r.get("publicURL") or r.get("appURL") or ("https://appetize.io/app/"+r.get("publicKey","")))')"
 
   build-committed-project:
     name: Build (committed .xcodeproj, no tooling)
