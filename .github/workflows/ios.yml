@@ -31,6 +31,7 @@ jobs:
           set -o pipefail
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath build/DerivedData \
             -only-testing:SupermortgageTests \
             test
       - name: The walk
@@ -38,8 +39,37 @@ jobs:
           set -o pipefail
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/walk.xcresult \
             -only-testing:SupermortgageUITests \
             test
+      - name: Export the walk's screenshots
+        if: always()
+        run: |
+          if [ -d build/walk.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/walk.xcresult --output-path build/walk-screenshots || true
+          fi
+      - name: Upload the walk's screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walk-screenshots
+          path: build/walk-screenshots
+          if-no-files-found: ignore
+      - name: Zip the simulator build
+        if: always()
+        run: |
+          APP=$(find build/DerivedData/Build/Products -maxdepth 2 -name 'Supermortgage.app' -type d | head -1)
+          if [ -n "$APP" ]; then
+            ditto -c -k --keepParent "$APP" build/Supermortgage-simulator.app.zip
+          fi
+      - name: Upload the simulator build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Supermortgage-simulator-app
+          path: build/Supermortgage-simulator.app.zip
+          if-no-files-found: ignore
 
   build-committed-project:
     name: Build (committed .xcodeproj, no tooling)
