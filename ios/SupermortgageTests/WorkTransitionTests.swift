@@ -177,8 +177,10 @@ final class WorkTransitionTests: XCTestCase {
         XCTAssertEqual(model.log.first?.text, "Memory edited")
         model.saveInstructions("  Post more.  ")
         XCTAssertEqual(model.feedInstructions, "Post more.")
+        model.saveInstructions("")
+        XCTAssertEqual(model.feedInstructions, "Post more.", "an empty field keeps the old text")
         model.saveInstructions("   ")
-        XCTAssertEqual(model.feedInstructions, "Post more.")
+        XCTAssertEqual(model.feedInstructions, "", "whitespace is saved trimmed, as the prototype does")
     }
 
     func testDeleteResetsEverything() async {

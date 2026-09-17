@@ -456,9 +456,9 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// `saveInstr`: an empty field keeps the old text; anything else is saved trimmed.
     func saveInstructions(_ text: String) {
-        let t = text.trimmed
-        if !t.isEmpty { feedInstructions = t }
+        feedInstructions = (text.isEmpty ? feedInstructions : text).trimmed
         router.dismiss()
         router.toast("Feed instructions updated")
     }
