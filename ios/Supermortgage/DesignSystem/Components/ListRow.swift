@@ -1,17 +1,19 @@
 import SwiftUI
 
 /// `.list-row`: label left in `muted`, value right at weight 500, a `line` hairline above every row
-/// but the first. 15/20, 12pt of padding.
+/// but the first. 15/20, 12pt of padding; the first row has none above, the last none below.
 struct ListRow<Value: View>: View {
     let key: String
     var first: Bool = false
+    var last: Bool = false
     let value: Value
 
     @Environment(\.tokens) private var t
 
-    init(_ key: String, first: Bool = false, @ViewBuilder value: () -> Value) {
+    init(_ key: String, first: Bool = false, last: Bool = false, @ViewBuilder value: () -> Value) {
         self.key = key
         self.first = first
+        self.last = last
         self.value = value()
     }
 
@@ -28,7 +30,7 @@ struct ListRow<Value: View>: View {
                 .frame(maxWidth: 220, alignment: .trailing)
         }
         .padding(.top, first ? 0 : 12)
-        .padding(.bottom, 12)
+        .padding(.bottom, last ? 0 : 12)
         .overlay(alignment: .top) {
             if !first { Rectangle().fill(t.line).frame(height: 1) }
         }
@@ -37,8 +39,8 @@ struct ListRow<Value: View>: View {
 }
 
 extension ListRow where Value == Text {
-    init(_ key: String, _ value: String, first: Bool = false) {
-        self.init(key, first: first) { Text(value) }
+    init(_ key: String, _ value: String, first: Bool = false, last: Bool = false) {
+        self.init(key, first: first, last: last) { Text(value) }
     }
 }
 

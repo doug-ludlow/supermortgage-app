@@ -20,9 +20,9 @@ struct HowIWorkView: View {
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 34)
             VStack(alignment: .leading, spacing: 28) {
-                IntroPoint(symbol: "arrow.triangle.2.circlepath", title: Copy.introPoints[0].title, text: Copy.introPoints[0].body)
-                IntroPoint(symbol: "wallet.pass", title: Copy.introPoints[1].title, text: Copy.introPoints[1].body)
-                IntroPoint(symbol: "minus.circle", title: Copy.introPoints[2].title, text: Copy.introPoints[2].body)
+                IntroPoint(icon: .refresh, title: Copy.introPoints[0].title, text: Copy.introPoints[0].body)
+                IntroPoint(icon: .wallet, title: Copy.introPoints[1].title, text: Copy.introPoints[1].body)
+                IntroPoint(icon: .minus, title: Copy.introPoints[2].title, text: Copy.introPoints[2].body)
             }
             .padding(.horizontal, 4)
             Spacer(minLength: 32)
@@ -33,7 +33,7 @@ struct HowIWorkView: View {
         .padding(.top, 58)
         .padding(.horizontal, 20)
         .padding(.bottom, 30)
-        .screenEnter()
+        .screenEnter(duration: 0.24)
     }
 
     /// The two link-styled words do nothing.

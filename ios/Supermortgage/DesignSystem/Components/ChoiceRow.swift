@@ -16,7 +16,6 @@ struct ChoiceRow: View {
                 if let icon {
                     Icon(icon, size: 24)
                         .foregroundStyle(t.text)
-                        .frame(width: 28, height: 28)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)

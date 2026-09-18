@@ -15,6 +15,6 @@ struct SetupView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
-        .screenEnter()
+        .screenEnter(duration: 0.24)
     }
 }

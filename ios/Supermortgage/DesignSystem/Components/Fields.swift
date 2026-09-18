@@ -105,7 +105,7 @@ struct TextArea: View {
     }
 }
 
-/// `.check`: a 19pt checkbox with `accent` when checked, a 15pt label and a 12pt `muted` sub line.
+/// `.check`: a 19pt checkbox with `button` when checked, a 15pt label and a 12pt `muted` sub line.
 struct CheckRow: View {
     let title: String
     var sub: String? = nil
@@ -118,9 +118,9 @@ struct CheckRow: View {
             HStack(alignment: .top, spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(checked ? t.accent : Color.clear)
+                        .fill(checked ? t.button : Color.clear)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(checked ? t.accent : t.quiet, lineWidth: 1.5)
+                        .strokeBorder(checked ? t.button : t.quiet, lineWidth: 1.5)
                     if checked {
                         Icon(.check, size: 13, lineWidth: 2.4)
                             .foregroundStyle(.white)

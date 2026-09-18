@@ -30,7 +30,7 @@ struct WelcomeView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
-        .screenEnter()
+        .screenEnter(duration: 0.24)
         .onAppear { model.welcomeAppeared() }
     }
 }

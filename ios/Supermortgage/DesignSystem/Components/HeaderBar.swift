@@ -14,8 +14,7 @@ struct HeaderBar: View {
                 Spacer()
                 Button { model.openInvite() } label: {
                     Text("Invite")
-                        .textStyle(.bodySemibold)
-                        .tracking(-0.35)
+                        .textStyle(.headerAction)
                         .foregroundStyle(t.text)
                         .padding(.horizontal, 16)
                         .frame(minWidth: 73, minHeight: 44)

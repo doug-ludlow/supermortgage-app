@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// `.ag-bar`: a 10pt `subtle` track with three segments — done in `accent`, pending in the
-/// pending color, offered in `accentSoft` — each `value/total` wide with a 2% minimum when non-zero.
+/// pending color, offered in `accentSoft`. Widths are fractions of the track; the caller applies
+/// the prototype's 2% minimum for a non-zero value (`AppModel.barFraction`).
 struct ProgressBar: View {
     let done: Double
     let pending: Double

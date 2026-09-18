@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// `.intro-point`: a 24pt light SF Symbol, a 17pt medium heading and a 15pt `muted` paragraph.
+/// `.intro-point`: one of the prototype's icons at 24pt, a 17pt medium heading and a 15pt `muted` paragraph.
 struct IntroPoint: View {
-    let symbol: String
+    let icon: IconName
     let title: String
     let text: String
 
@@ -10,12 +10,9 @@ struct IntroPoint: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 22, weight: .light))
+            Icon(icon, size: 24)
                 .foregroundStyle(t.text)
-                .frame(width: 24, height: 24)
                 .padding(.top, 1)
-                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .textStyle(.bodyMedium)

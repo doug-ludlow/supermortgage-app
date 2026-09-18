@@ -13,7 +13,7 @@ struct AboutSheet: View {
             SectionHeading("Three kinds of work")
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(Copy.aboutKinds.enumerated()), id: \.offset) { _, kind in
-                    (Text(kind.label).fontWeight(.semibold) + Text(kind.text))
+                    (Text(kind.label).fontWeight(.bold) + Text(kind.text))
                         .textStyle(.support)
                         .foregroundStyle(t.muted)
                         .fixedSize(horizontal: false, vertical: true)

@@ -61,13 +61,16 @@ extension View {
         }
     }
 
-    /// `@keyframes enter`: 0.16s from 75% opacity and 3pt down. Off under Reduce Motion.
-    func screenEnter() -> some View {
-        modifier(ScreenEnter())
+    /// `@keyframes enter`: from 75% opacity and 3pt down — 0.16s for a tab screen, 0.24s for an
+    /// onboarding screen. Off under Reduce Motion.
+    func screenEnter(duration: Double = 0.16) -> some View {
+        modifier(ScreenEnter(duration: duration))
     }
 }
 
 private struct ScreenEnter: ViewModifier {
+    let duration: Double
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var entered = false
 
@@ -76,7 +79,7 @@ private struct ScreenEnter: ViewModifier {
             .opacity(entered || reduceMotion ? 1 : 0.75)
             .offset(y: entered || reduceMotion ? 0 : 3)
             .onAppear {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { entered = true }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: duration)) { entered = true }
             }
     }
 }

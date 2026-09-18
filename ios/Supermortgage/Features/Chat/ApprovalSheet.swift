@@ -19,8 +19,8 @@ struct ApprovalSheet: View {
                     .foregroundStyle(t.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 8)
-                ForEach(Copy.approvalRows) { row in
-                    ListRow(row.key, row.value)
+                ForEach(Array(Copy.approvalRows.enumerated()), id: \.element.id) { index, row in
+                    ListRow(row.key, row.value, last: index == Copy.approvalRows.count - 1)
                 }
             }
             ActionStack {

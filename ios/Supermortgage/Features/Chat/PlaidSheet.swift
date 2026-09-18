@@ -18,7 +18,7 @@ struct PlaidSheet: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Northstar Bank")
-                        .textStyle(.bodySemibold)
+                        .textStyle(.bodyBold)
                         .foregroundStyle(t.text)
                     Text("Plaid · demo")
                         .textStyle(.support)

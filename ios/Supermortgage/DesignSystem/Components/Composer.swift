@@ -33,6 +33,9 @@ struct Composer: View {
                     .focused($focused)
                     .submitLabel(.send)
                     .onSubmit(send)
+                    .onChange(of: text) {
+                        if text.count > 2000 { text = String(text.prefix(2000)) }
+                    }
                     .accessibilityLabel("Message your agent")
                     .accessibilityIdentifier("composer.field")
             }

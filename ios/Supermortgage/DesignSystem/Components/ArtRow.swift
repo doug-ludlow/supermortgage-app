@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// `.ag-thumb`: a 54×66 `surface` tile with a 1pt `cardLine` border; `chart.bar` in `accent` when live, else `doc`.
+/// `.ag-thumb`: a 54×66 `surface` tile with a 1pt `cardLine` border; the `chart` icon in `accent` when live, else `file`.
 struct ArtThumb: View {
     let live: Bool
 
     @Environment(\.tokens) private var t
 
     var body: some View {
-        Image(systemName: live ? "chart.bar" : "doc")
-            .font(.system(size: 20, weight: .light))
+        Icon(live ? .chart : .file, size: 22)
             .foregroundStyle(live ? t.accent : t.quiet)
             .frame(width: 54, height: 66)
             .background(t.surface)
@@ -41,8 +40,8 @@ struct ArtRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
-                Icon(.arrow, size: 16)
-                    .foregroundStyle(t.quiet)
+                Icon(.arrow, size: 24)
+                    .foregroundStyle(t.text)
             }
             .padding(.vertical, 12)
             .contentShape(Rectangle())

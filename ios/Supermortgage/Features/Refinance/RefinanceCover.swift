@@ -15,24 +15,18 @@ struct RefinanceCover: View {
     @State private var homeValue = "410,000"
     @State private var balance = "287,400"
     @State private var occupancy = "Main home"
-    @State private var propertyType = "Single-family"
-    @State private var units = "1"
-    @State private var hoa = "0"
-    @State private var otherLiens = "0"
     @State private var detailsOpen = false
     @State private var handing = false
     @State private var inviteShown = false
 
     private let goals = ["Lower payment", "Pay off sooner", "Take cash out"]
     private let occupancies = ["Main home", "Second home", "Investment property"]
-    private let propertyTypes = ["Single-family", "Condominium", "Townhouse", "2–4 unit property", "Manufactured home"]
 
     var body: some View {
         RefinanceCoverContent(
             address: $address, goal: $goal, homeValue: $homeValue, balance: $balance, occupancy: $occupancy,
-            propertyType: $propertyType, units: $units, hoa: $hoa, otherLiens: $otherLiens,
             detailsOpen: $detailsOpen, handing: $handing, inviteShown: $inviteShown,
-            goals: goals, occupancies: occupancies, propertyTypes: propertyTypes,
+            goals: goals, occupancies: occupancies,
             onContinue: continueTapped, onBack: handBack)
             .resolvedTokens()
             .preferredColorScheme(model.theme.colorScheme)
@@ -59,16 +53,11 @@ private struct RefinanceCoverContent: View {
     @Binding var homeValue: String
     @Binding var balance: String
     @Binding var occupancy: String
-    @Binding var propertyType: String
-    @Binding var units: String
-    @Binding var hoa: String
-    @Binding var otherLiens: String
     @Binding var detailsOpen: Bool
     @Binding var handing: Bool
     @Binding var inviteShown: Bool
     let goals: [String]
     let occupancies: [String]
-    let propertyTypes: [String]
     let onContinue: () -> Void
     let onBack: () -> Void
 
@@ -147,8 +136,7 @@ private struct RefinanceCoverContent: View {
                 Spacer()
                 Button { inviteShown = true } label: {
                     Text("Invite")
-                        .textStyle(.bodySemibold)
-                        .tracking(-0.35)
+                        .textStyle(.headerAction)
                         .foregroundStyle(t.text)
                         .padding(.horizontal, 16)
                         .frame(minWidth: 73, minHeight: 44)
@@ -226,7 +214,7 @@ private struct RefinanceCoverContent: View {
         .accessibilityIdentifier("refinance.handback")
     }
 
-    /// `<details>` "Property details": the legacy summary row with its + / − marker.
+    /// The disclosed "Property details" row (§5.10): the summary row with its + / − marker; its contents are Milestone 3.
     private var propertyDetails: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { detailsOpen.toggle() } label: {
@@ -244,15 +232,6 @@ private struct RefinanceCoverContent: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("refinance.details")
-            if detailsOpen {
-                SelectField(label: "Property type", options: propertyTypes, selection: $propertyType)
-                HStack(alignment: .top, spacing: 12) {
-                    TextFieldBox(label: "Units", text: $units)
-                    TextFieldBox(label: "HOA / month", prefix: "$", text: $hoa)
-                }
-                .padding(.vertical, -12)
-                TextFieldBox(label: "Other liens to pay off", prefix: "$", text: $otherLiens)
-            }
         }
         .padding(.bottom, 8)
         .padding(.vertical, 10)

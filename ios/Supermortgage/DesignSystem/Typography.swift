@@ -34,6 +34,10 @@ struct TextStyle {
     static let button = TextStyle(size: 17, line: 22, weight: .medium, tracking: -0.35)
     // the header name pill 15 weight 600, tracking −0.35
     static let pill = TextStyle(size: 15, line: 20, weight: .semibold, tracking: -0.35)
+    // `.header-action` (Invite) 17 weight 600, tracking −0.35
+    static let headerAction = TextStyle(size: 17, line: 22, weight: .semibold, tracking: -0.35)
+    // `<strong>` in body copy: the browser default, bold
+    static let bodyBold = TextStyle(size: 17, line: 22, weight: .bold, tracking: -0.3)
     // the Goals arrow (26, weight 400)
     static let arrow = TextStyle(size: 26, line: 30, weight: .regular, tracking: 0)
 }

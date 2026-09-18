@@ -87,7 +87,7 @@ struct MessageBubble: View {
                     }
                 }
                 .padding(.top, 8)
-                .padding(.vertical, 6)
+                .padding(.bottom, 6)
             }
         case .number(let lead, let amount, let rows):
             VStack(alignment: .leading, spacing: 0) {
@@ -128,7 +128,6 @@ struct MessageBubble: View {
         case .progress(let state):
             StatusRow(text: state.done ?? state.loading, small: state.small, done: state.isDone)
                 .padding(.top, 10)
-                .padding(.bottom, -4)
         }
     }
 }
@@ -139,7 +138,7 @@ struct RichText: View {
 
     var body: some View {
         spans.reduce(Text("")) { partial, span in
-            partial + (span.bold ? Text(span.text).fontWeight(.semibold) : Text(span.text))
+            partial + (span.bold ? Text(span.text).fontWeight(.bold) : Text(span.text))
         }
     }
 }
