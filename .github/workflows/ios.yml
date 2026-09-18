@@ -159,7 +159,8 @@ jobs:
       - name: Publish to Appetize.io
         if: always()
         env:
-          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+          # Either name works for the token; secret names are case-insensitive on GitHub.
+          APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || secrets.APPETIZE }}
           APPETIZE_PUBLIC_KEY: ${{ secrets.APPETIZE_PUBLIC_KEY }}
         run: |
           if [ ! -f build/Supermortgage-simulator.app.zip ]; then

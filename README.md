@@ -37,7 +37,7 @@ Every green run on `main` publishes the walk's screenshots, one per screen (the 
 Every CI run builds a universal simulator app (`Supermortgage-simulator-app`, an artifact on the run page). Two ways to run it in a browser on [Appetize.io](https://appetize.io):
 
 - **By hand:** download the artifact zip from the latest run under Actions, then upload it in your Appetize dashboard (Upload → iOS). Appetize gives you a link that runs the app in a browser-hosted simulator.
-- **Automatically on every push:** add an Appetize API token as the repository secret `APPETIZE_API_TOKEN` (Settings → Secrets and variables → Actions). CI then publishes the build and prints the app link as a notice on the run. To keep one stable link, also add the app's public key as the secret `APPETIZE_PUBLIC_KEY` after the first upload; later pushes update that app in place.
+- **Automatically on every push:** add an Appetize API token as the repository secret `APPETIZE_API_TOKEN` (or just `APPETIZE`) (Settings → Secrets and variables → Actions). CI then publishes the build and prints the app link as a notice on the run. To keep one stable link, also add the app's public key as the secret `APPETIZE_PUBLIC_KEY` after the first upload; later pushes update that app in place.
 
 ## Layout
 
