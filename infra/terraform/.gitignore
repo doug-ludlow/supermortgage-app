@@ -1,0 +1,12 @@
+# Local Terraform working files; state lives in the GCS bucket from bootstrap.sh.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+tfplan
+plan.txt
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.auto.tfvars

@@ -1,0 +1,153 @@
+name: Infra
+
+# Terraform for the cloud environment (infra/terraform), §7 of docs/SIGNUP-FOR-REAL.md:
+# a plan commented on every pull request that touches infra/, an apply on main behind the
+# `nonprod` GitHub environment's approval. Every job is skipped until the repository
+# variable GCP_WIF_PROVIDER exists, i.e. until infra/bootstrap.sh and the first apply by
+# hand have run (see infra/README.md).
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_VAR_FILE: envs/nonprod.tfvars
+  TF_STATE_BUCKET: ${{ vars.GCP_PROJECT_ID }}-tfstate
+
+defaults:
+  run:
+    working-directory: infra/terraform
+
+jobs:
+  plan:
+    name: Plan (nonprod)
+    if: github.event_name == 'pull_request' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: infra-plan-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform init
+        run: terraform init -no-color -backend-config="bucket=${TF_STATE_BUCKET}"
+
+      - name: terraform validate
+        run: terraform validate -no-color
+
+      - name: terraform plan
+        id: plan
+        run: |
+          set -o pipefail
+          terraform plan -no-color -lock-timeout=5m \
+            -var-file="${TF_VAR_FILE}" -var "state_bucket=${TF_STATE_BUCKET}" \
+            -out=tfplan 2>&1 | tee plan.txt
+
+      - name: Comment the plan on the pull request
+        if: always() && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
+        uses: actions/github-script@v7
+        env:
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- supermortgage-infra-plan -->";
+            const limit = 60000;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const path = "infra/terraform/plan.txt";
+            let plan = fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "(no plan output)";
+            if (plan.length > limit) {
+              // Keep the head and the tail: the summary line lives at the end.
+              const tail = 8000;
+              const note = "\n\n… truncated; the full plan is in the workflow run …\n\n";
+              plan = plan.slice(0, limit - tail - note.length) + note + plan.slice(-tail);
+            }
+            const outcome = process.env.PLAN_OUTCOME === "success" ? "succeeded" : "failed";
+            const body = [
+              marker,
+              `### Terraform plan (nonprod): ${outcome}`,
+              "",
+              "<details><summary>Show the plan</summary>",
+              "",
+              "```",
+              plan,
+              "```",
+              "",
+              "</details>",
+              "",
+              `[Workflow run](${runUrl})`,
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  apply:
+    name: Apply (nonprod)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # The GitHub environment's required reviewers are the approval gate.
+    environment: nonprod
+    concurrency:
+      group: infra-apply-nonprod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: terraform init -no-color -backend-config="bucket=${TF_STATE_BUCKET}"
+
+      - name: terraform validate
+        run: terraform validate -no-color
+
+      - name: terraform apply
+        run: |
+          terraform apply -auto-approve -no-color -lock-timeout=5m \
+            -var-file="${TF_VAR_FILE}" -var "state_bucket=${TF_STATE_BUCKET}"
