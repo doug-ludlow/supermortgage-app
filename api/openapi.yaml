@@ -1,0 +1,714 @@
+# Generated from the route schemas by src/tools/openapi-write.ts. Do not edit.
+openapi: 3.1.0
+info:
+  title: Supermortgage API
+  description: Accounts, households, agents and onboarding. Bearer tokens are Identity Platform ID tokens.
+  version: 1.0.0
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProviderInput:
+      type: string
+      enum:
+        - apple
+        - google
+        - email
+    OnboardingStageInput:
+      type: string
+      enum:
+        - know
+        - setup
+        - chat
+    UserInput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        email:
+          type:
+            - string
+            - "null"
+        emailVerified:
+          type: boolean
+        displayName:
+          type:
+            - string
+            - "null"
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderInput"
+          description: Every door this account has used
+        signedInWith:
+          description: The door of the current session
+          $ref: "#/components/schemas/ProviderInput"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: ISO 8601 timestamp
+      required:
+        - id
+        - email
+        - emailVerified
+        - displayName
+        - providers
+        - signedInWith
+        - createdAt
+    HouseholdInput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: ISO 8601 timestamp
+      required:
+        - id
+        - createdAt
+    AgentInput:
+      type: object
+      properties:
+        name:
+          type:
+            - string
+            - "null"
+        namedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              description: ISO 8601 timestamp
+            - type: "null"
+      required:
+        - name
+        - namedAt
+    OnboardingInput:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/OnboardingStageInput"
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              description: ISO 8601 timestamp
+            - type: "null"
+      required:
+        - stage
+        - completedAt
+    MeInput:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserInput"
+        household:
+          $ref: "#/components/schemas/HouseholdInput"
+        agent:
+          $ref: "#/components/schemas/AgentInput"
+        onboarding:
+          $ref: "#/components/schemas/OnboardingInput"
+      required:
+        - user
+        - household
+        - agent
+        - onboarding
+      examples:
+        - user:
+            id: 7b8f5a6e-4c1d-4e2a-9f3b-1a2b3c4d5e6f
+            email: doug@example.com
+            emailVerified: true
+            displayName: null
+            providers:
+              - apple
+            signedInWith: apple
+            createdAt: 2026-09-18T00:00:00.000Z
+          household:
+            id: 0c2f6f1e-5d3a-4b7c-8e9f-2b3c4d5e6f70
+            createdAt: 2026-09-18T00:00:00.000Z
+          agent:
+            name: Hazel
+            namedAt: 2026-09-18T00:01:00.000Z
+          onboarding:
+            stage: chat
+            completedAt: 2026-09-18T00:01:00.000Z
+        - user:
+            id: 7b8f5a6e-4c1d-4e2a-9f3b-1a2b3c4d5e6f
+            email: walk@example.com
+            emailVerified: true
+            displayName: null
+            providers:
+              - email
+            signedInWith: email
+            createdAt: 2026-09-18T00:00:00.000Z
+          household:
+            id: 0c2f6f1e-5d3a-4b7c-8e9f-2b3c4d5e6f70
+            createdAt: 2026-09-18T00:00:00.000Z
+          agent:
+            name: null
+            namedAt: null
+          onboarding:
+            stage: know
+            completedAt: null
+    EmailStartRequestInput:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 320
+      required:
+        - email
+      examples:
+        - email: you@example.com
+    EmailVerifyRequestInput:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 320
+        code:
+          type: string
+          minLength: 1
+          maxLength: 16
+      required:
+        - email
+        - code
+      examples:
+        - email: you@example.com
+          code: "482913"
+    EmailVerifyResponseInput:
+      type: object
+      properties:
+        customToken:
+          type: string
+          description: Exchange with Auth.auth().signIn(withCustomToken:)
+      required:
+        - customToken
+      examples:
+        - customToken: eyJhbGciOiJSUzI1NiJ9.e30.sig
+    AgentPatchInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 24
+      required:
+        - name
+      examples:
+        - name: Hazel
+    OnboardingPatchInput:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/OnboardingStageInput"
+      required:
+        - stage
+      examples:
+        - stage: chat
+    HealthInput:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        version:
+          type: string
+        db:
+          type: string
+          enum:
+            - ok
+            - error
+      required:
+        - ok
+        - version
+        - db
+      examples:
+        - ok: true
+          version: supermortgage-app-api-00012-abc
+          db: ok
+    ProblemInput:
+      type: object
+      properties:
+        error:
+          type: string
+          description: A stable machine-readable code
+      required:
+        - error
+      examples:
+        - error: code_invalid
+    EmptyInput:
+      type: object
+      properties: {}
+    Provider:
+      type: string
+      enum:
+        - apple
+        - google
+        - email
+    OnboardingStage:
+      type: string
+      enum:
+        - know
+        - setup
+        - chat
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        email:
+          type:
+            - string
+            - "null"
+        emailVerified:
+          type: boolean
+        displayName:
+          type:
+            - string
+            - "null"
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Provider"
+          description: Every door this account has used
+        signedInWith:
+          description: The door of the current session
+          $ref: "#/components/schemas/Provider"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: ISO 8601 timestamp
+      required:
+        - id
+        - email
+        - emailVerified
+        - displayName
+        - providers
+        - signedInWith
+        - createdAt
+      additionalProperties: false
+    Household:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: ISO 8601 timestamp
+      required:
+        - id
+        - createdAt
+      additionalProperties: false
+    Agent:
+      type: object
+      properties:
+        name:
+          type:
+            - string
+            - "null"
+        namedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              description: ISO 8601 timestamp
+            - type: "null"
+      required:
+        - name
+        - namedAt
+      additionalProperties: false
+    Onboarding:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/OnboardingStage"
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              description: ISO 8601 timestamp
+            - type: "null"
+      required:
+        - stage
+        - completedAt
+      additionalProperties: false
+    Me:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        household:
+          $ref: "#/components/schemas/Household"
+        agent:
+          $ref: "#/components/schemas/Agent"
+        onboarding:
+          $ref: "#/components/schemas/Onboarding"
+      required:
+        - user
+        - household
+        - agent
+        - onboarding
+      additionalProperties: false
+      examples:
+        - user:
+            id: 7b8f5a6e-4c1d-4e2a-9f3b-1a2b3c4d5e6f
+            email: doug@example.com
+            emailVerified: true
+            displayName: null
+            providers:
+              - apple
+            signedInWith: apple
+            createdAt: 2026-09-18T00:00:00.000Z
+          household:
+            id: 0c2f6f1e-5d3a-4b7c-8e9f-2b3c4d5e6f70
+            createdAt: 2026-09-18T00:00:00.000Z
+          agent:
+            name: Hazel
+            namedAt: 2026-09-18T00:01:00.000Z
+          onboarding:
+            stage: chat
+            completedAt: 2026-09-18T00:01:00.000Z
+        - user:
+            id: 7b8f5a6e-4c1d-4e2a-9f3b-1a2b3c4d5e6f
+            email: walk@example.com
+            emailVerified: true
+            displayName: null
+            providers:
+              - email
+            signedInWith: email
+            createdAt: 2026-09-18T00:00:00.000Z
+          household:
+            id: 0c2f6f1e-5d3a-4b7c-8e9f-2b3c4d5e6f70
+            createdAt: 2026-09-18T00:00:00.000Z
+          agent:
+            name: null
+            namedAt: null
+          onboarding:
+            stage: know
+            completedAt: null
+    EmailStartRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 320
+      required:
+        - email
+      additionalProperties: false
+      examples:
+        - email: you@example.com
+    EmailVerifyRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 320
+        code:
+          type: string
+          minLength: 1
+          maxLength: 16
+      required:
+        - email
+        - code
+      additionalProperties: false
+      examples:
+        - email: you@example.com
+          code: "482913"
+    EmailVerifyResponse:
+      type: object
+      properties:
+        customToken:
+          type: string
+          description: Exchange with Auth.auth().signIn(withCustomToken:)
+      required:
+        - customToken
+      additionalProperties: false
+      examples:
+        - customToken: eyJhbGciOiJSUzI1NiJ9.e30.sig
+    AgentPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 24
+      required:
+        - name
+      additionalProperties: false
+      examples:
+        - name: Hazel
+    OnboardingPatch:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/OnboardingStage"
+      required:
+        - stage
+      additionalProperties: false
+      examples:
+        - stage: chat
+    Health:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        version:
+          type: string
+        db:
+          type: string
+          enum:
+            - ok
+            - error
+      required:
+        - ok
+        - version
+        - db
+      additionalProperties: false
+      examples:
+        - ok: true
+          version: supermortgage-app-api-00012-abc
+          db: ok
+    Problem:
+      type: object
+      properties:
+        error:
+          type: string
+          description: A stable machine-readable code
+      required:
+        - error
+      additionalProperties: false
+      examples:
+        - error: code_invalid
+    Empty:
+      type: object
+      properties: {}
+      additionalProperties: false
+paths:
+  /health:
+    get:
+      summary: Liveness and the database
+      tags:
+        - ops
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /v1/auth/email/start:
+    post:
+      summary: Send a six-digit code to an e-mail address
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailStartRequestInput"
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+  /v1/auth/email/verify:
+    post:
+      summary: Exchange the six-digit code for an Identity Platform custom token
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerifyRequestInput"
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailVerifyResponse"
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/me/bootstrap:
+    post:
+      summary: Create or refresh the user, household, agent and onboarding for the signed-in person
+      tags:
+        - me
+      security: &a1
+        - bearer: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/me:
+    get:
+      summary: The signed-in person
+      tags:
+        - me
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      summary: "Delete the account: rows, then the Identity Platform user"
+      tags:
+        - me
+      security: *a1
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/me/agent:
+    patch:
+      summary: Name the agent; completes onboarding
+      tags:
+        - me
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentPatchInput"
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/me/onboarding:
+    patch:
+      summary: Record the onboarding stage
+      tags:
+        - me
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingPatchInput"
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"

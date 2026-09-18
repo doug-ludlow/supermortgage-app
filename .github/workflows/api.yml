@@ -1,0 +1,129 @@
+name: API
+
+on:
+  push:
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+      - "ios/Supermortgage/App/API/Generated.swift"
+      - "ios/SupermortgageTests/APIExamples.swift"
+  pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGION: us-central1
+  SERVICE: supermortgage-app-api
+
+jobs:
+  test:
+    name: Typecheck, test, generated files, image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Start the Firebase Auth emulator
+        run: |
+          (npx --yes firebase-tools@15 emulators:start --only auth --project demo-supermortgage > emulator.log 2>&1 &)
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9099/ > /dev/null; then echo "emulator up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "emulator did not start"; cat emulator.log; exit 1
+      - name: Tests (Vitest against Postgres and the emulator)
+        env:
+          TEST_DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app_test
+          FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+        run: npm test
+      - name: openapi.yaml and the generated iOS types are current
+        run: |
+          npm run openapi
+          npm run gen:swift
+          git diff --exit-code -- openapi.yaml ../ios/Supermortgage/App/API/Generated.swift ../ios/SupermortgageTests/APIExamples.swift \
+            || { echo "::error::Regenerate with 'npm run openapi && npm run gen:swift' in api/ and commit."; exit 1; }
+      - name: The image builds
+        run: docker build -t supermortgage-app-api:ci .
+
+  deploy:
+    name: Deploy to Cloud Run (nonprod)
+    needs: test
+    if: github.ref == 'refs/heads/main' && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    environment: nonprod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Build and push the image
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          IMAGE="${REGION}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/api/${SERVICE}:${GITHUB_SHA}"
+          docker build -t "$IMAGE" api
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy the new revision without traffic
+        run: |
+          gcloud run deploy "$SERVICE" --image "$IMAGE" --region "$REGION" --project "${{ vars.GCP_PROJECT_ID }}" \
+            --no-traffic --quiet
+          REVISION=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "${{ vars.GCP_PROJECT_ID }}" \
+            --format 'value(status.latestCreatedRevisionName)')
+          echo "REVISION=$REVISION" >> "$GITHUB_ENV"
+      - name: The new revision is healthy
+        # Ingress is load-balancer only, so the revision is not reachable by its own URL from here.
+        # Cloud Run's startup probe hits GET /health (infra/terraform/run.tf); a Ready revision passed it.
+        run: |
+          for i in $(seq 1 30); do
+            READY=$(gcloud run revisions describe "$REVISION" --region "$REGION" --project "${{ vars.GCP_PROJECT_ID }}" \
+              --format 'value(status.conditions[?type=Ready].status)' | tr -d '[]')
+            echo "Ready=$READY"
+            if [ "$READY" = "True" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "::error::revision $REVISION did not become Ready"; exit 1
+      - name: Shift traffic to it
+        run: |
+          gcloud run services update-traffic "$SERVICE" --region "$REGION" --project "${{ vars.GCP_PROJECT_ID }}" \
+            --to-revisions "$REVISION=100" --quiet
+      - name: /health through the load balancer
+        run: |
+          for i in $(seq 1 24); do
+            if curl -sf https://api-nonprod.supermortgage.com/health; then echo; exit 0; fi
+            sleep 5
+          done
+          echo "::warning::api-nonprod.supermortgage.com did not answer; check DNS and the managed certificate"
