@@ -92,6 +92,9 @@ final class TheWalkTests: XCTestCase {
         codeField.typeText(code)
         snap("check-email")
         tap(app.buttons["button.Continue"], 10)
+        // Whatever the code sheet led to (Setting up, a toast, or the chat), three seconds later.
+        Thread.sleep(forTimeInterval: 3)
+        snap("after-code")
 
         // Chat intro → Hazel
         waitFor(app.buttons["chat.option.Hazel"], 20)

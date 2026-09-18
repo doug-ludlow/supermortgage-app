@@ -104,7 +104,8 @@ jobs:
       - name: What failed (unit tests)
         if: failure()
         run: |
-          # The compiler errors and failing test cases, so a failure can be read from the log's tail.
+          # The compiler errors and failing test cases, kept in a file the job prints last.
+          {
           grep -E "error:|Test Case .* failed|failed \(|\*\* TEST FAILED|Testing failed:|Fatal error|Restarting after" build/unit-tests.log | grep -v "^warning" | head -n 80 || true
           if [ -d build/unit.xcresult ]; then
             xcrun xcresulttool get test-results summary --path build/unit.xcresult 2>/dev/null | head -n 120 || true
@@ -127,6 +128,8 @@ jobs:
               walk(n, [])
           ' || true
           fi
+          } > build/unit-failure.txt 2>&1
+          cat build/unit-failure.txt
       # The walk signs in against a local API (docs/SIGNUP-FOR-REAL.md §6): Postgres 16, the Firebase
       # Auth emulator and the API itself, all on 127.0.0.1, which the simulator shares with the host.
       - uses: actions/setup-node@v4
@@ -190,9 +193,14 @@ jobs:
       - name: What failed (the walk)
         if: failure()
         run: |
+          {
           grep -E "error:|Test Case .* failed|failed \(|\*\* TEST FAILED|Testing failed:|Fatal error|missing " build/walk.log | head -n 60 || true
           # The accessibility hierarchy the walk prints when an element is missing.
           awk "/=== accessibility hierarchy/,/=== end hierarchy ===/" build/walk.log | head -n 400 || true
+          echo "===== api.log (last 60 lines) ====="
+          tail -n 60 build/api.log 2>/dev/null || true
+          } > build/walk-failure.txt 2>&1
+          cat build/walk-failure.txt
       - name: The API's and the emulator's logs
         if: always()
         run: |
@@ -244,12 +252,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SRC=build/walk-screenshots/named
-          if [ ! -d "$SRC" ] || [ -z "$(ls -A "$SRC")" ]; then echo "No named screenshots"; exit 0; fi
+          if [ ! -d "$SRC" ] || [ -z "$(ls -A "$SRC")" ]; then
+            if [ ! -f build/walk-failure.txt ]; then echo "No named screenshots"; exit 0; fi
+            mkdir -p "$SRC"
+          fi
           rm -rf build/screenshots-branch && mkdir -p build/screenshots-branch && cd build/screenshots-branch
           git init -q -b screenshots
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cp ../walk-screenshots/named/*.png .
+          for f in ../walk-failure.txt ../unit-failure.txt; do [ -f "$f" ] && cp "$f" .; done
           {
             echo "# Walk screenshots"
             echo
@@ -313,6 +325,14 @@ jobs:
           print("Manage it at:", r.get("manageURL", ""))
           '
           echo "::notice title=Appetize.io::$(echo "$RESPONSE" | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r.get("publicURL") or r.get("appURL") or ("https://appetize.io/app/"+r.get("publicKey","")))')"
+      - name: Failure summary (repeated last, so it is in the log's tail)
+        if: failure()
+        run: |
+          for f in build/unit-failure.txt build/walk-failure.txt; do
+            [ -f "$f" ] || continue
+            echo "===== $f ====="
+            cat "$f"
+          done
 
   build-committed-project:
     name: Build (committed .xcodeproj, no tooling)
