@@ -11,10 +11,12 @@ struct RealClock: AppClock {
     }
 }
 
-/// Returns at once (after checking for cancellation), so a whole script runs in a test in one go.
+/// Returns at once, so a whole script runs in a test in one go. Like `Task.sleep`, it throws when the
+/// task is cancelled — including when the cancellation lands while it is suspended in its yield.
 struct ImmediateClock: AppClock {
     func sleep(ms: Int) async throws {
         try Task.checkCancellation()
         await Task.yield()
+        try Task.checkCancellation()
     }
 }

@@ -265,8 +265,8 @@ jobs:
           git init -q -b screenshots
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cp ../walk-screenshots/named/*.png .
-          for f in ../walk-failure.txt ../unit-failure.txt; do [ -f "$f" ] && cp "$f" .; done
+          cp ../walk-screenshots/named/*.png . 2>/dev/null || true
+          for f in ../walk-failure.txt ../unit-failure.txt; do [ -f "$f" ] && cp "$f" . || true; done
           {
             echo "# Walk screenshots"
             echo
