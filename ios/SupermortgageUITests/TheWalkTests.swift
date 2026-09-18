@@ -179,6 +179,8 @@ final class TheWalkTests: XCTestCase {
         waitFor(app.buttons["menu.Settings"], 10)
         snap("menu")
         tap(app.buttons["menu.Settings"], 10)
+        // The Account section reads the server's answer: the door and the address of this session.
+        waitFor(app.staticTexts["Signed in with e-mail · walk@example.com"], 10)
         waitFor(app.staticTexts["Appearance"], 10)
         tap(app.buttons["segment.Dark"], 10)
         snap("settings-dark")
