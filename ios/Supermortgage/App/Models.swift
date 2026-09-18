@@ -297,6 +297,24 @@ struct Connections: Equatable {
     var plaid = false
 }
 
+/// The sign-up doors (addendum 1). Raw values are the prototype's `data-arg`.
+enum AuthProvider: String, CaseIterable, Equatable {
+    case apple = "Apple"
+    case google = "Google"
+    case email = "Email"
+}
+
+/// `A.account`: who is signed in, and with what.
+struct Account: Equatable {
+    let provider: AuthProvider
+    var email: String?
+
+    init(provider: AuthProvider, email: String? = nil) {
+        self.provider = provider
+        self.email = email
+    }
+}
+
 enum ApprovalsSetting: String, CaseIterable, Identifiable {
     case everything = "all"
     case binding = "binding"
@@ -423,6 +441,8 @@ enum SheetKind: Identifiable, Equatable {
     case settings
     case about
     case schedule
+    case login
+    case checkEmail
 
     var id: String {
         switch self {
@@ -442,6 +462,8 @@ enum SheetKind: Identifiable, Equatable {
         case .settings: return "settings"
         case .about: return "about"
         case .schedule: return "schedule"
+        case .login: return "login"
+        case .checkEmail: return "check-email"
         }
     }
 }

@@ -34,6 +34,23 @@ enum Copy {
     static let getStarted = "Get started"
     static let setupTitle = "Setting up your agent"
 
+    // MARK: Sign up (addendum 1)
+
+    static let signupTitle = "Setup your home assistant"
+    static let continueWithApple = "Continue with Apple"
+    static let continueWithGoogle = "Continue with Google"
+    static let logInOrSignUp = "Log in or sign up"
+    static func continuingWith(_ provider: AuthProvider) -> String { "Continuing with \(provider.rawValue)…" }
+    static let emailLabel = "Email"
+    static let emailPlaceholder = "you@example.com"
+    static let codeFine = "We’ll send a six-digit code. No password."
+    static let checkYourEmail = "Check your email"
+    static let codeLabel = "Code"
+    static let codePlaceholder = "••••••"
+    static let sendNewCode = "Send a new code"
+    static let accountSmall = "Your agent, home and history belong to this account"
+    static let notSignedIn = "Not signed in"
+
     // MARK: Chat script
 
     static func intro1(owner: String) -> String {

@@ -9,7 +9,16 @@ struct SettingsSheet: View {
 
     var body: some View {
         SheetContainer("Settings") {
-            SectionHeading("Connections", top: 0)
+            SectionHeading("Account", top: 0)
+            PermRow(model.accountLine, small: Copy.accountSmall) {
+                Button { model.signOut() } label: {
+                    Text("Sign out")
+                }
+                .buttonStyle(CapsuleButtonStyle(fill: t.bubble, pressed: t.selected, label: t.text, fullWidth: false, minHeight: 36))
+                .accessibilityIdentifier("settings.signout")
+            }
+
+            SectionHeading("Connections")
             PermRow("Mortgage servicer", small: "Connected · statement read today") { onChip }
             PermRow("Credit", small: "Allowed · soft pull · 742") { onChip }
             PermRow("Bank accounts", small: "Northstar Bank · 3 accounts") { onChip }

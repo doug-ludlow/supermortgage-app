@@ -4,7 +4,7 @@ import SwiftUI
 enum IconName: String, CaseIterable {
     case back, arrow, up, menu, plus, close, check, home, refresh, wallet, clock, shield, bank, work, user, file, spark,
          lock, chat, edit, feed, goals, art, heart, info, dots, bolt, camera, image, target, mic, link, download, sliders,
-         pause, calendar, chart, sun, moon, minus
+         pause, calendar, chart, sun, moon, minus, mail
 
     var pathData: String {
         switch self {
@@ -48,6 +48,7 @@ enum IconName: String, CaseIterable {
         case .sun: return "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10M12 2v2m0 16v2M4 12H2m20 0h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"
         case .moon: return "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5"
         case .minus: return "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M8 12h8"
+        case .mail: return "M4 6h16v12H4zM4 7l8 6 8-6"
         }
     }
 

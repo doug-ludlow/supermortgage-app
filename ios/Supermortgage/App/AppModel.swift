@@ -31,6 +31,12 @@ final class AppModel: ObservableObject {
     @Published var snippetIndex = 0
     @Published var memory: String?
     @Published var insuranceConnected = false
+    // Addendum 1: the sign-up step
+    @Published var signup = false
+    @Published var account: Account?
+    @Published var pendingEmail: String?
+    /// The door that is "Continuing with …"; every door is disabled while it is set.
+    @Published var authInProgress: AuthProvider?
 
     // `WORK`, `ARTS`, `MEDIA`
     @Published var work: [WorkItem] = WorkRegistry.items()
@@ -80,6 +86,14 @@ final class AppModel: ObservableObject {
     }
 
     var displayName: String { name.isEmpty ? "Supermortgage" : name }
+
+    /// The Settings account line: "Signed in with Apple", "Signed in with e-mail · {email}", or "Not signed in".
+    var accountLine: String {
+        guard let account else { return Copy.notSignedIn }
+        let who = account.provider == .email ? "Signed in with e-mail" : "Signed in with \(account.provider.rawValue)"
+        if let email = account.email, !email.isEmpty { return "\(who) · \(email)" }
+        return who
+    }
     var agentTitle: String { name.isEmpty ? "Your agent" : name }
     var isWorking: Bool { stage == .chat && setupDone && !paused }
     var memoryDisplay: String { memory ?? Copy.memoryText() }
@@ -223,6 +237,70 @@ final class AppModel: ObservableObject {
             do { try await self.clock.sleep(ms: 2600) } catch { return }
             if self.stage == .welcome { self.stage = .know }
         }
+    }
+
+    // MARK: - Sign up (addendum 1)
+
+    /// "Get started" switches the page into its sign-up state.
+    func signupOpen() { signup = true }
+
+    /// The back button returns to the bullets.
+    func signupClose() { signup = false }
+
+    /// A door. Apple and Google are fixtures: 1.1s of "Continuing with …", then setup. E-mail opens the sheet.
+    func auth(_ provider: AuthProvider) {
+        if provider == .email {
+            router.present(.login)
+            return
+        }
+        guard authInProgress == nil else { return }
+        authInProgress = provider
+        account = Account(provider: provider)
+        addLog("Signed up with \(provider.rawValue)")
+        run { [weak self] in
+            guard let self else { return }
+            do { try await self.clock.sleep(ms: 1100) } catch { return }
+            self.signup = false
+            self.authInProgress = nil
+            self.getStarted()
+        }
+    }
+
+    /// "Log in or sign up" → Continue: an empty field toasts, otherwise the code sheet.
+    func authEmail(_ raw: String) {
+        let email = raw.trimmed
+        guard !email.isEmpty else {
+            router.toast("Enter your email")
+            return
+        }
+        pendingEmail = email
+        router.present(.checkEmail)
+    }
+
+    /// "Check your email" → Continue: fewer than six digits toasts; otherwise the account is recorded and setup follows.
+    func authCode(_ raw: String) {
+        let code = raw.trimmed
+        guard code.count >= 6 else {
+            router.toast("Six digits")
+            return
+        }
+        router.dismiss()
+        account = Account(provider: .email, email: pendingEmail)
+        addLog("Signed up with e-mail · \(pendingEmail ?? "")")
+        run { [weak self] in
+            guard let self else { return }
+            do { try await self.clock.sleep(ms: 600) } catch { return }
+            self.signup = false
+            self.getStarted()
+        }
+    }
+
+    func resendCode() { router.toast("Code sent again") }
+
+    /// Settings → Account → Sign out: the whole model resets (as Delete does) and the toast says so.
+    func signOut() {
+        reset()
+        router.toast("Signed out")
     }
 
     /// "Get started": the orb for 1.7s, then the shell on Chat and the intro script.
@@ -684,6 +762,10 @@ final class AppModel: ObservableObject {
         snippetIndex = 0
         memory = nil
         insuranceConnected = false
+        signup = false
+        account = nil
+        pendingEmail = nil
+        authInProgress = nil
         work = WorkRegistry.items()
         artifacts = ArtifactFixtures.artifacts
         media = ArtifactFixtures.media

@@ -53,6 +53,11 @@ final class TheWalkTests: XCTestCase {
         snap("how-i-work")
         tap(app.buttons["button.Get started"], 15)
 
+        // The sign-up step (addendum 1): Continue with Apple
+        waitFor(app.buttons["button.Continue with Apple"], 15)
+        snap("signup")
+        tap(app.buttons["button.Continue with Apple"], 15)
+
         // Chat intro → Hazel
         waitFor(app.buttons["chat.option.Hazel"], 20)
         snap("chat-intro")

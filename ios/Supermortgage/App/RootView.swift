@@ -97,6 +97,8 @@ private struct SheetBody: View {
         case .settings: SettingsSheet()
         case .about: AboutSheet()
         case .schedule: ScheduleSheet()
+        case .login: LoginSheet()
+        case .checkEmail: CheckEmailSheet()
         }
     }
 }
@@ -105,7 +107,7 @@ extension SheetKind {
     /// Content-heavy sheets open at the large detent so nothing hides below the fold.
     var opensLarge: Bool {
         switch self {
-        case .menu, .agent, .approval, .work, .artifact, .settings, .about, .plaid:
+        case .menu, .agent, .approval, .work, .artifact, .settings, .about, .plaid, .login, .checkEmail:
             return true
         default:
             return false
