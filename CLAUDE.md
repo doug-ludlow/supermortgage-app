@@ -1,11 +1,14 @@
 # Supermortgage app — working rules
 
 - The HTML in `docs/prototype/` is the spec for the shell; copy and structure come from it verbatim. When something is unclear, read the HTML again before deciding. `docs/SHELL-SPEC.md` decides only where the HTML is silent; `docs/SIGNUP-FOR-REAL.md` (real accounts and sign-in) wins over the spec for the front door, accounts, the API and the cloud.
-- SwiftUI only, iOS 17, no dependencies, fixtures only. Do not add a networking layer "for later".
+- SwiftUI only, iOS 17. Exactly two dependencies, pinned in both `ios/project.yml` and `ios/tools/gen-pbxproj.py`: `firebase-ios-sdk` (product `FirebaseAuth` only) and `GoogleSignIn-iOS` (`GoogleSignIn`, `GoogleSignInSwift`). Nothing else. The app may talk only to our API (`APIClient`), Identity Platform (through `FirebaseAuth`) and Google Sign-In.
+- Everything past the front door (the mortgage, the number, Work, Feed, Goals, Artifacts) stays on fixtures until the next milestone. The account, the agent's name and the onboarding state come from the server (`Me`) and nothing else is persisted.
 - Small commits, one screen or component each, in the order of §5 of the spec. Each commit builds and its tests pass.
 - Don't claim a screen is done until it has been compared against the HTML side by side in the simulator at 390pt, light and dark.
-- Don't rename, "improve" or reword product copy. Don't add screens, settings, empty states or explanatory text the HTML doesn't have.
+- Don't rename, "improve" or reword product copy. Don't add screens, settings, empty states or explanatory text the HTML doesn't have. The few strings the accounts brief needs that the HTML lacks (a returning person's greeting, the delete confirmation) sit under `// MARK: Accounts` in `Copy.swift`; adding one is a departure to name in the commit message.
 - Keep the fixture values exactly (§6 of the spec); tests assert them. The files in `ios/Supermortgage/Fixtures/` are transcribed from the HTML's data arrays; regenerate rather than hand-edit.
-- When you must depart from the HTML (there is one sanctioned case, §5.10, the Refinance cover), say so in the commit message.
-- Build and test: `xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' test` with zero warnings you introduced. `ios/project.yml` is the XcodeGen source of the project; after changing it run `xcodegen generate` in `ios/` and commit the regenerated `.xcodeproj`.
-- Swift 5.10 language mode, erasable syntax only in the shell: no Swift 6 strict concurrency, no third-party packages, charts drawn with `Path`/`Canvas`.
+- When you must depart from the HTML (the sanctioned cases: §5.10, the Refinance cover; the delete confirmation sheet of SIGNUP-FOR-REAL.md §3.5), say so in the commit message.
+- Build and test: `xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO test` with zero warnings you introduced. The walk signs in through the local API: run `docker compose up` and `npm run dev` in `api/` first (README). `ios/project.yml` is the XcodeGen source of the project and `ios/tools/gen-pbxproj.py` writes the committed `.xcodeproj`; after changing either, run `xcodegen generate` in `ios/` and `python3 ios/tools/gen-pbxproj.py ios/Supermortgage.xcodeproj/project.pbxproj`, and commit the results.
+- The API: `cd api && npm test` runs against Postgres and the Auth emulator. After changing a schema run `npm run openapi && npm run gen:swift` and commit `openapi.yaml` and the generated Swift; CI fails when they are stale.
+- Swift 5.10 language mode, erasable syntax only in the shell: no Swift 6 strict concurrency, charts drawn with `Path`/`Canvas`.
+- No secret in the repository and no PII in logs. `GoogleService-Info.plist` (public identifiers) is the one vendor file that belongs in `ios/Supermortgage/Resources/`.
