@@ -1,6 +1,6 @@
 # Supermortgage app — working rules
 
-- The HTML in `docs/prototype/` is the spec for the shell; copy and structure come from it verbatim. When something is unclear, read the HTML again before deciding. `docs/SHELL-SPEC.md` decides only where the HTML is silent; `docs/SHELL-ADDENDUM-1-signup.md` adds the sign-up step and wins over the spec where they disagree.
+- The HTML in `docs/prototype/` is the spec for the shell; copy and structure come from it verbatim. When something is unclear, read the HTML again before deciding. `docs/SHELL-SPEC.md` decides only where the HTML is silent; `docs/SIGNUP-FOR-REAL.md` (real accounts and sign-in) wins over the spec for the front door, accounts, the API and the cloud.
 - SwiftUI only, iOS 17, no dependencies, fixtures only. Do not add a networking layer "for later".
 - Small commits, one screen or component each, in the order of §5 of the spec. Each commit builds and its tests pass.
 - Don't claim a screen is done until it has been compared against the HTML side by side in the simulator at 390pt, light and dark.

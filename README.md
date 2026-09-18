@@ -2,7 +2,7 @@
 
 The Supermortgage iPhone app. This repository holds Milestone 1, **the shell**: every screen, tab, sheet and interaction of the agent prototype rebuilt natively in SwiftUI, running entirely on fixture data with no network, no persistence and no dependencies.
 
-The specification is the clickable prototype at `docs/prototype/Supermortgage-Agent-Prototype.html`; the build brief is `docs/SHELL-SPEC.md`, extended by `docs/SHELL-ADDENDUM-1-signup.md` (the sign-up step). Where the brief and the HTML disagree, the HTML wins.
+The specification is the clickable prototype at `docs/prototype/Supermortgage-Agent-Prototype.html`; the build brief is `docs/SHELL-SPEC.md`, extended by `docs/SIGNUP-FOR-REAL.md` (real accounts and sign-in). Where the brief and the HTML disagree, the HTML wins.
 
 ## Open, run, walk
 
