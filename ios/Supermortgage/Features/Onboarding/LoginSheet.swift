@@ -26,6 +26,7 @@ struct LoginSheet: View {
                 .padding(.top, -6)
             ActionStack {
                 PrimaryButton("Continue") { model.authEmail(email) }
+                    .disabled(model.emailBusy)
             }
         }
         .onAppear {
@@ -65,8 +66,10 @@ struct CheckEmailSheet: View {
             }
             ActionStack {
                 PrimaryButton("Continue") { model.authCode(code) }
+                    .disabled(model.emailBusy)
                 LinkButton(Copy.sendNewCode) { model.resendCode() }
                     .frame(maxWidth: .infinity)
+                    .disabled(model.emailBusy)
             }
         }
         .onAppear {

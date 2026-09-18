@@ -1,11 +1,13 @@
+import AuthenticationServices
 import SwiftUI
 
 /// "Here’s how I work:" — the mark, the heading, three intro points, the terms line and "Get started".
-/// "Get started" switches the same page into its sign-up state (addendum 1): a back button, the mark,
+/// "Get started" switches the same page into its sign-up state: a back button, the mark,
 /// "Setup your home assistant", and three doors above the terms line.
 struct HowIWorkView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.tokens) private var t
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -62,13 +64,7 @@ struct HowIWorkView: View {
                 .padding(.bottom, 34)
             Spacer(minLength: 32)
             VStack(spacing: 8) {
-                DoorButton(Copy.continueWithApple, busyTitle: Copy.continuingWith(.apple), inverted: true,
-                           busy: model.authInProgress == .apple, disabled: model.authInProgress != nil) {
-                    Image("Apple")
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 22, height: 22)
-                } action: { model.auth(.apple) }
+                appleDoor
                 DoorButton(Copy.continueWithGoogle, busyTitle: Copy.continuingWith(.google),
                            busy: model.authInProgress == .google, disabled: model.authInProgress != nil) {
                     Image("Google")
@@ -89,6 +85,51 @@ struct HowIWorkView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 30)
         .screenEnter(duration: 0.24)
+    }
+
+    /// Apple's own button (so Apple's review sees Apple's button), clipped to the door's shape; while
+    /// it is continuing, our inverted door shows the spinner and "Continuing with Apple…".
+    @ViewBuilder
+    private var appleDoor: some View {
+        if model.authInProgress == .apple {
+            DoorButton(Copy.continueWithApple, busyTitle: Copy.continuingWith(.apple), inverted: true,
+                       busy: true, disabled: true) {
+                EmptyView()
+            } action: {}
+        } else {
+            SignInWithAppleButton(.continue) { request in
+                guard let nonce = model.beginApple() else { return }
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = AppleNonce.sha256Hex(nonce)
+            } onCompletion: { result in
+                switch result {
+                case .success(let authorization):
+                    guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                          let tokenData = credential.identityToken,
+                          let identityToken = String(data: tokenData, encoding: .utf8) else {
+                        model.appleFailed(AuthFlowError.failed("Apple returned no identity token"))
+                        return
+                    }
+                    model.appleSucceeded(AppleCredential(
+                        identityToken: identityToken,
+                        authorizationCode: credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) },
+                        fullName: credential.fullName,
+                        email: credential.email))
+                case .failure(let error):
+                    if (error as? ASAuthorizationError)?.code == .canceled {
+                        model.appleFailed(AuthFlowError.cancelled)
+                    } else {
+                        model.appleFailed(error)
+                    }
+                }
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .disabled(model.authInProgress != nil)
+            .opacity(model.authInProgress != nil ? 0.6 : 1)
+            .accessibilityIdentifier("button.\(Copy.continueWithApple)")
+        }
     }
 
     private var mark: some View {

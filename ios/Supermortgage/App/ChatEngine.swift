@@ -80,6 +80,17 @@ final class ChatEngine {
         ], delay: 1000)
     }
 
+    /// A returning person (onboarding complete on the server): the greeting by name, then the three
+    /// connections — the tail of `scriptSetup` without the naming.
+    func scriptReturn() async {
+        guard await say(.text(Copy.returnGreeting(owner: Home.owner, agent: model.name)), delay: 600) != nil else { return }
+        await say(.text(Copy.firstAsk), options: [
+            ChatOption("Sign in to your servicer", .connMortgage("Sign in to your servicer")),
+            ChatOption("Upload a statement", .connMortgage("Upload a statement")),
+            ChatOption("Take a photo", .connMortgage("Take a photo")),
+        ], delay: 1000)
+    }
+
     func scriptCredit() async {
         await say(.text(Copy.creditAsk), options: [
             ChatOption("Yes, go ahead", .connCredit("Yes, go ahead")),

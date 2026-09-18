@@ -2,7 +2,8 @@ import Foundation
 import Combine
 
 /// The single source of truth, mirroring the prototype's `A`, `WORK`, `ARTS` and `MEDIA`.
-/// In memory only: nothing is persisted, and `reset()` returns the app to Welcome.
+/// Everything past the front door is in memory and `reset()` returns the app to Welcome; the account,
+/// the agent's name and the onboarding state live on the server (`Me`) and are applied on arrival.
 @MainActor
 final class AppModel: ObservableObject {
     // `A`
@@ -37,6 +38,8 @@ final class AppModel: ObservableObject {
     @Published var pendingEmail: String?
     /// The door that is "Continuing with …"; every door is disabled while it is set.
     @Published var authInProgress: AuthProvider?
+    /// Continue on the e-mail sheets is single-shot while a request is in flight.
+    @Published var emailBusy = false
 
     // `WORK`, `ARTS`, `MEDIA`
     @Published var work: [WorkItem] = WorkRegistry.items()
@@ -45,17 +48,31 @@ final class AppModel: ObservableObject {
 
     let router: Router
     let clock: AppClock
+    /// The session with Identity Platform, the API, and the two doors that need a provider's SDK.
+    let session: AuthSession
+    let api: APIClient
+    let google: GoogleSignInDoor
+    let appleReauth: AppleReauthorizer
     /// False in unit tests: no snippet cycling and no proactive timers, so state is deterministic.
     let runsTimers: Bool
 
     private(set) lazy var engine = ChatEngine(model: self, clock: clock)
     private var tasks: [Task<Void, Never>] = []
     private var snippetTask: Task<Void, Never>?
+    /// The raw nonce of the Apple request in flight.
+    private var appleNonce: String?
 
-    init(clock: AppClock = RealClock(), runsTimers: Bool = true) {
+    init(clock: AppClock = RealClock(), runsTimers: Bool = true,
+         session: AuthSession, api: APIClient, google: GoogleSignInDoor, appleReauth: AppleReauthorizer) {
         self.clock = clock
         self.runsTimers = runsTimers
         self.router = Router(clock: clock, autoClearsToasts: runsTimers)
+        self.session = session
+        self.api = api
+        self.google = google
+        self.appleReauth = appleReauth
+        session.onChange = { [weak self] state in self?.authChanged(state) }
+        api.onUnauthorized = { [weak self] in self?.session.signOut() }
     }
 
     // MARK: - Derived numbers
@@ -229,8 +246,12 @@ final class AppModel: ObservableObject {
 
     // MARK: - Onboarding
 
-    /// Welcome auto-advances after 2.6s.
+    /// Welcome: a signed-in person resumes from the server; otherwise the page advances after 2.6s.
     func welcomeAppeared() {
+        if session.isSignedIn {
+            run { [weak self] in await self?.resumeSession() }
+            return
+        }
         guard runsTimers else { return }
         run { [weak self] in
             guard let self else { return }
@@ -239,7 +260,55 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: - Sign up (addendum 1)
+    /// Cold start with a user: GET /v1/me (bootstrapping first when the server has never seen this
+    /// account), then route. While the API is unreachable Welcome keeps its spinner and we retry.
+    func resumeSession() async {
+        while !Task.isCancelled && stage == .welcome {
+            do {
+                let me: API.Me
+                do {
+                    me = try await api.me()
+                } catch APIError.status(404, _) {
+                    me = try await api.bootstrap()
+                }
+                apply(me)
+                return
+            } catch APIError.unauthorized {
+                return
+            } catch APIError.notSignedIn {
+                return
+            } catch {
+                router.toast(error.oneLine)
+                do { try await clock.sleep(ms: 3000) } catch { return }
+            }
+        }
+    }
+
+    /// `Me` from the server is the truth: the agent's name, the account line, and where to go.
+    private func apply(_ me: API.Me) {
+        name = me.agent.name ?? ""
+        account = Account(provider: AuthProvider(me.user.signedInWith), email: me.user.email)
+        signup = false
+        authInProgress = nil
+        appleNonce = nil
+        if me.onboarding.completedAt != nil {
+            stage = .chat
+            tab = .chat
+            run { [weak self] in await self?.engine.scriptReturn() }
+        } else {
+            getStarted()
+        }
+    }
+
+    /// A session that ends elsewhere (a revoked token, a 401, a deletion) returns the app to Welcome.
+    private func authChanged(_ state: AuthState) {
+        objectWillChange.send()
+        if case .signedOut = state, account != nil {
+            reset()
+        }
+    }
+
+    // MARK: - The doors
 
     /// "Get started" switches the page into its sign-up state.
     func signupOpen() { signup = true }
@@ -247,71 +316,177 @@ final class AppModel: ObservableObject {
     /// The back button returns to the bullets.
     func signupClose() { signup = false }
 
-    /// A door. Apple and Google are fixtures: 1.1s of "Continuing with …", then setup. E-mail opens the sheet.
-    func auth(_ provider: AuthProvider) {
-        if provider == .email {
-            router.present(.login)
-            return
-        }
-        guard authInProgress == nil else { return }
-        authInProgress = provider
-        account = Account(provider: provider)
-        addLog("Signed up with \(provider.rawValue)")
+    /// The Apple button's request: a fresh raw nonce, or nil while another door is continuing.
+    func beginApple() -> String? {
+        guard begin(.apple) else { return nil }
+        let nonce = AppleNonce.random()
+        appleNonce = nonce
+        return nonce
+    }
+
+    /// The Apple button completed with a credential: exchange it, then bootstrap.
+    func appleSucceeded(_ credential: AppleCredential) {
+        guard let nonce = appleNonce else { return }
         run { [weak self] in
             guard let self else { return }
-            do { try await self.clock.sleep(ms: 1100) } catch { return }
-            self.signup = false
-            self.authInProgress = nil
-            self.getStarted()
+            do {
+                _ = try await self.session.signInWithApple(idToken: credential.identityToken, rawNonce: nonce, fullName: credential.fullName)
+                self.addLog("Signed up with Apple")
+                try await self.landed()
+            } catch {
+                self.doorFailed(error)
+            }
         }
     }
 
-    /// "Log in or sign up" → Continue: an empty field toasts, otherwise the code sheet.
+    /// The Apple button failed or was cancelled.
+    func appleFailed(_ error: Error) { doorFailed(error) }
+
+    /// A door. Google runs the Google Sign-In sheet; e-mail opens its sheet; Apple comes through its own button.
+    func auth(_ provider: AuthProvider) {
+        switch provider {
+        case .email:
+            router.present(.login)
+        case .google:
+            guard begin(.google) else { return }
+            run { [weak self] in
+                guard let self else { return }
+                do {
+                    let tokens = try await self.google.signIn()
+                    _ = try await self.session.signInWithGoogle(idToken: tokens.idToken, accessToken: tokens.accessToken)
+                    self.addLog("Signed up with Google")
+                    try await self.landed()
+                } catch {
+                    self.doorFailed(error)
+                }
+            }
+        case .apple:
+            break
+        }
+    }
+
+    private func begin(_ provider: AuthProvider) -> Bool {
+        guard authInProgress == nil, session.begin(provider) else { return false }
+        authInProgress = provider
+        return true
+    }
+
+    /// After any door: the server creates or refreshes the account, then decides where we go.
+    private func landed() async throws {
+        let me = try await api.bootstrap()
+        apply(me)
+    }
+
+    /// Cancel re-enables the doors silently; anything else toasts the provider's message. A door
+    /// that signed in but could not bootstrap signs out again, so no half session remains.
+    private func doorFailed(_ error: Error) {
+        authInProgress = nil
+        appleNonce = nil
+        if session.isSignedIn {
+            session.signOut()
+        } else {
+            session.cancel()
+        }
+        if (error as? AuthFlowError) == .cancelled { return }
+        router.toast(error.oneLine)
+    }
+
+    /// "Log in or sign up" → Continue: an empty field toasts; otherwise the code is sent and the code sheet opens.
     func authEmail(_ raw: String) {
         let email = raw.trimmed
         guard !email.isEmpty else {
             router.toast("Enter your email")
             return
         }
-        pendingEmail = email
-        router.present(.checkEmail)
+        guard !emailBusy else { return }
+        emailBusy = true
+        run { [weak self] in
+            guard let self else { return }
+            defer { self.emailBusy = false }
+            do {
+                try await self.api.emailStart(email: email)
+                self.pendingEmail = email
+                self.router.present(.checkEmail)
+            } catch {
+                self.router.toast(error.oneLine)
+            }
+        }
     }
 
-    /// "Check your email" → Continue: fewer than six digits toasts; otherwise the account is recorded and setup follows.
+    /// "Check your email" → Continue: fewer than six digits toasts without a request; the API says
+    /// whether the code is wrong (400) or expired or burned (410); then the custom token signs in.
     func authCode(_ raw: String) {
         let code = raw.trimmed
         guard code.count >= 6 else {
             router.toast("Six digits")
             return
         }
-        router.dismiss()
-        account = Account(provider: .email, email: pendingEmail)
-        addLog("Signed up with e-mail · \(pendingEmail ?? "")")
+        guard let email = pendingEmail, !emailBusy else { return }
+        emailBusy = true
         run { [weak self] in
             guard let self else { return }
-            do { try await self.clock.sleep(ms: 600) } catch { return }
-            self.signup = false
-            self.getStarted()
+            defer { self.emailBusy = false }
+            do {
+                let verified = try await self.api.emailVerify(email: email, code: code)
+                guard self.begin(.email) else { return }
+                _ = try await self.session.signIn(customToken: verified.customToken)
+                self.router.dismiss()
+                self.addLog("Signed up with e-mail · \(email)")
+                try await self.landed()
+            } catch APIError.status(400, _) {
+                self.router.toast("That code didn’t work")
+            } catch APIError.status(410, _) {
+                self.router.toast("Ask for a new code")
+            } catch {
+                self.doorFailed(error)
+            }
         }
     }
 
-    func resendCode() { router.toast("Code sent again") }
+    /// "Send a new code": start again.
+    func resendCode() {
+        guard let email = pendingEmail, !emailBusy else { return }
+        emailBusy = true
+        run { [weak self] in
+            guard let self else { return }
+            defer { self.emailBusy = false }
+            do {
+                try await self.api.emailStart(email: email)
+                self.router.toast("Code sent again")
+            } catch {
+                self.router.toast(error.oneLine)
+            }
+        }
+    }
 
-    /// Settings → Account → Sign out: the whole model resets (as Delete does) and the toast says so.
+    /// Settings → Account → Sign out: the model resets, Identity Platform signs out, Welcome, the toast.
     func signOut() {
         reset()
+        session.signOut()
         router.toast("Signed out")
     }
 
-    /// "Get started": the orb for 1.7s, then the shell on Chat and the intro script.
+    /// "Get started" (and a signed-in person with unfinished onboarding): the orb for 1.7s, then the
+    /// shell on Chat and the intro script. Each stage is recorded on the server as it happens.
     func getStarted() {
         stage = .setup
+        record(.setup)
         run { [weak self] in
             guard let self else { return }
             do { try await self.clock.sleep(ms: 1700) } catch { return }
             self.stage = .chat
             self.tab = .chat
+            self.record(.chat)
             await self.engine.scriptIntro()
+        }
+    }
+
+    /// PATCH /v1/me/onboarding when someone is signed in; a failure is silent (the next call carries the truth).
+    private func record(_ stage: API.OnboardingStage) {
+        guard session.isSignedIn else { return }
+        run { [weak self] in
+            guard let self else { return }
+            _ = try? await self.api.patchOnboarding(stage: stage)
         }
     }
 
@@ -359,10 +534,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Naming is optimistic: the chat continues at once; if PATCH /v1/me/agent fails the name reverts with a toast.
     func nameAgent(_ n: String) {
         engine.user("I’ll call you \(n)")
+        let previous = name
         name = n
         run { [weak self] in await self?.engine.scriptSetup() }
+        guard session.isSignedIn else { return }
+        run { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await self.api.patchAgent(name: n)
+            } catch APIError.unauthorized {
+                return
+            } catch {
+                self.name = previous
+                self.router.toast(error.oneLine)
+            }
+        }
     }
 
     /// The Name sheet's Save: empty falls back to Hazel.
@@ -677,8 +866,30 @@ final class AppModel: ObservableObject {
 
     func downloadData() { router.toast("Preparing your export") }
 
-    /// Settings → Your data → Delete: the shell resets the whole model and returns to Welcome.
-    func deleteData() { reset() }
+    /// Settings → Your data → Delete: the confirmation sheet first.
+    func deleteData() { router.present(.confirmDelete) }
+
+    /// Confirmed: a fresh Apple authorization when the account used Apple (its token is revoked with
+    /// it), then DELETE /v1/me, then sign out, then Welcome. Cancelling Apple's sheet keeps everything.
+    func confirmDelete() {
+        router.dismiss()
+        run { [weak self] in
+            guard let self else { return }
+            do {
+                var code: String?
+                if self.session.user?.usedApple == true {
+                    code = try await self.appleReauth.authorizationCode()
+                }
+                try await self.session.deleteAccount(appleAuthorizationCode: code) {
+                    try await self.api.deleteMe()
+                }
+                self.reset()
+            } catch {
+                if (error as? AuthFlowError) == .cancelled { return }
+                self.router.toast(error.oneLine)
+            }
+        }
+    }
 
     func copyInviteLink() { router.toast("Link copied") }
 
@@ -766,6 +977,8 @@ final class AppModel: ObservableObject {
         account = nil
         pendingEmail = nil
         authInProgress = nil
+        emailBusy = false
+        appleNonce = nil
         work = WorkRegistry.items()
         artifacts = ArtifactFixtures.artifacts
         media = ArtifactFixtures.media

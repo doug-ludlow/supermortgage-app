@@ -7,6 +7,8 @@ final class TheWalkTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        // A signed-out start: the simulator keeps the last walk's Identity Platform session otherwise.
+        app.launchEnvironment["SM_RESET_AUTH"] = "1"
         app.launch()
     }
 
@@ -34,6 +36,27 @@ final class TheWalkTests: XCTestCase {
         app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", fragment)).firstMatch
     }
 
+    /// The six-digit code the local API "sent" (MAIL_STUB=1 keeps an outbox), polled for up to 15s.
+    private func stubCode(for email: String) -> String? {
+        let base = ProcessInfo.processInfo.environment["SM_API_BASE_URL"] ?? "http://127.0.0.1:8080"
+        var components = URLComponents(string: base + "/__stub/mail/last")!
+        components.queryItems = [URLQueryItem(name: "to", value: email)]
+        for _ in 0..<30 {
+            let done = DispatchSemaphore(value: 0)
+            var code: String?
+            URLSession.shared.dataTask(with: components.url!) { data, _, _ in
+                if let data, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    code = object["code"] as? String
+                }
+                done.signal()
+            }.resume()
+            done.wait()
+            if let code { return code }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        return nil
+    }
+
     private var shot = 0
 
     /// Keeps a screenshot in the result bundle (CI exports them as an artifact).
@@ -53,10 +76,22 @@ final class TheWalkTests: XCTestCase {
         snap("how-i-work")
         tap(app.buttons["button.Get started"], 15)
 
-        // The sign-up step (addendum 1): Continue with Apple
-        waitFor(app.buttons["button.Continue with Apple"], 15)
+        // The sign-up step: Log in or sign up with a real code from the local API
+        waitFor(app.buttons["button.Log in or sign up"], 15)
         snap("signup")
-        tap(app.buttons["button.Continue with Apple"], 15)
+        tap(app.buttons["button.Log in or sign up"], 15)
+        let email = app.textFields["signup.email"]
+        tap(email, 10)
+        email.typeText("walk@example.com")
+        snap("login")
+        tap(app.buttons["button.Continue"], 10)
+        let codeField = app.textFields["signup.code"]
+        waitFor(codeField, 20)
+        let code = try XCTUnwrap(stubCode(for: "walk@example.com"), "no code from the API's mail stub at /__stub/mail/last")
+        tap(codeField, 10)
+        codeField.typeText(code)
+        snap("check-email")
+        tap(app.buttons["button.Continue"], 10)
 
         // Chat intro → Hazel
         waitFor(app.buttons["chat.option.Hazel"], 20)

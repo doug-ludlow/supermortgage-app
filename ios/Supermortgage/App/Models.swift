@@ -443,6 +443,7 @@ enum SheetKind: Identifiable, Equatable {
     case schedule
     case login
     case checkEmail
+    case confirmDelete
 
     var id: String {
         switch self {
@@ -464,6 +465,7 @@ enum SheetKind: Identifiable, Equatable {
         case .schedule: return "schedule"
         case .login: return "login"
         case .checkEmail: return "check-email"
+        case .confirmDelete: return "confirm-delete"
         }
     }
 }

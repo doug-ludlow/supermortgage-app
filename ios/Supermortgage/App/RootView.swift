@@ -99,6 +99,7 @@ private struct SheetBody: View {
         case .schedule: ScheduleSheet()
         case .login: LoginSheet()
         case .checkEmail: CheckEmailSheet()
+        case .confirmDelete: DeleteSheet()
         }
     }
 }

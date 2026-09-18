@@ -51,6 +51,17 @@ enum Copy {
     static let accountSmall = "Your agent, home and history belong to this account"
     static let notSignedIn = "Not signed in"
 
+    // MARK: Accounts (SIGNUP-FOR-REAL.md). Not in the HTML: the greeting a returning person gets, and
+    // the confirmation the brief asks for before Delete.
+
+    static func returnGreeting(owner: String, agent: String) -> String {
+        "Hey \(owner), \(agent) here. My job is to take your monthly housing cost to $0."
+    }
+    static let deleteTitle = "Delete everything?"
+    static let deleteIntro = "This deletes your account, your agent and everything it knows about your home. It can’t be undone."
+    static let deleteConfirm = "Delete everything"
+    static let deleteKeep = "Keep everything"
+
     // MARK: Chat script
 
     static func intro1(owner: String) -> String {

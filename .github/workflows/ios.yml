@@ -13,20 +13,40 @@ concurrency:
 jobs:
   build-and-test:
     name: Build and test (XcodeGen project)
-    runs-on: macos-14
-    timeout-minutes: 60
+    # macos-15: Firebase 12.19.2 needs Swift 6.1 tools (Xcode 16.3+); macos-14 tops out at Xcode 16.2.
+    runs-on: macos-15
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 16
+      - name: Select Xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          # The newest Xcode 16 (16.4 on macos-15, iOS 18 SDK); failing that, the newest Xcode there is.
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1); fi
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
       - name: Pick the iPhone 15 simulator
         run: |
+          # macos-15 images ship no iPhone 15, so one is created on the newest iOS runtime whose major
+          # version matches the selected Xcode's iOS SDK (18 for Xcode 16.4), else on the newest runtime.
+          SDK_MAJOR=$(xcodebuild -showsdks -json 2>/dev/null | python3 -c '
+          import json, re, sys
+          majors = []
+          try:
+              for sdk in json.load(sys.stdin):
+                  m = re.match(r"iphonesimulator(\d+)", sdk.get("canonicalName", ""))
+                  if not m and sdk.get("platform") == "iphonesimulator":
+                      m = re.match(r"(\d+)", sdk.get("sdkVersion") or sdk.get("platformVersion") or "")
+                  if m:
+                      majors.append(int(m.group(1)))
+          except Exception:
+              pass
+          print(max(majors) if majors else "")
+          ' || true)
+          echo "iOS SDK major: ${SDK_MAJOR:-unknown}"
           UDID=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
           data = json.load(sys.stdin)["devices"]
@@ -44,38 +64,109 @@ jobs:
           if [ -z "$UDID" ]; then
             RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c '
           import json, sys
+          major = sys.argv[1]
           runtimes = [r for r in json.load(sys.stdin)["runtimes"] if r.get("platform") == "iOS" and r.get("isAvailable", False)]
           runtimes.sort(key=lambda r: tuple(int(x) for x in r["version"].split(".")))
-          print(runtimes[-1]["identifier"] if runtimes else "")
-          ')
+          matching = [r for r in runtimes if major and r["version"].split(".")[0] == major]
+          chosen = matching or runtimes
+          print(chosen[-1]["identifier"] if chosen else "")
+          ' "$SDK_MAJOR")
             echo "Creating an iPhone 15 on $RUNTIME"
             UDID=$(xcrun simctl create "iPhone 15" "com.apple.CoreSimulator.SimDeviceType.iPhone-15" "$RUNTIME")
           fi
           echo "Using simulator $UDID"
           xcrun simctl boot "$UDID" || true
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Cache the Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/project.yml') }}
+          restore-keys: ${{ runner.os }}-spm-
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate the project
         working-directory: ios
         run: xcodegen generate
+      # Simulator builds are not signed: the Sign in with Apple entitlement would otherwise demand a team.
       - name: Unit tests
         run: |
           set -o pipefail
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             -only-testing:SupermortgageTests \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             test
+      # The walk signs in against a local API (docs/SIGNUP-FOR-REAL.md §6): Postgres 16, the Firebase
+      # Auth emulator and the API itself, all on 127.0.0.1, which the simulator shares with the host.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Start Postgres 16
+        run: |
+          brew install postgresql@16
+          PG="$(brew --prefix postgresql@16)/bin"
+          mkdir -p build/postgres
+          "$PG/initdb" -D build/postgres/data -U postgres --auth=trust --encoding=UTF8 --locale=C > build/postgres/initdb.log 2>&1 \
+            || { cat build/postgres/initdb.log; exit 1; }
+          "$PG/pg_ctl" -D build/postgres/data -l build/postgres/postgres.log -o "-p 5432 -c listen_addresses=127.0.0.1" -w start
+          "$PG/psql" -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE app WITH LOGIN PASSWORD 'app';" \
+            -c "CREATE DATABASE app OWNER app;"
+      - name: Install the API
+        working-directory: api
+        run: npm ci --no-audit --no-fund
+      - name: Start the Firebase Auth emulator
+        working-directory: api
+        run: |
+          mkdir -p ../build
+          (npx --yes firebase-tools@15 emulators:start --only auth --project demo-supermortgage > ../build/emulator.log 2>&1 &)
+          for i in $(seq 1 120); do
+            if curl -sf http://127.0.0.1:9099/ > /dev/null; then echo "emulator up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "::error::the Auth emulator did not start"; tail -n 50 ../build/emulator.log; exit 1
+      - name: Build and start the API
+        working-directory: api
+        env:
+          PORT: "8080"
+          DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app
+          GOOGLE_CLOUD_PROJECT: demo-supermortgage
+          FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+          ENVIRONMENT: test
+          MAIL_STUB: "1"
+          EMAIL_CODE_PEPPER: ci-only-pepper-0123456789abcdef
+        run: |
+          npm run build
+          (node dist/main.js > ../build/api.log 2>&1 &)
+          for i in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health)" = "200" ]; then echo "API up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "::error::the API did not answer on /health"; tail -n 50 ../build/api.log; exit 1
       - name: The walk
         run: |
           set -o pipefail
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/walk.xcresult \
             -only-testing:SupermortgageUITests \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             test
+      - name: The API's and the emulator's logs
+        if: always()
+        run: |
+          for f in build/api.log build/emulator.log build/postgres/postgres.log; do
+            [ -f "$f" ] || continue
+            echo "===== $f (last 200 lines) ====="
+            tail -n 200 "$f"
+          done
       - name: Export the walk's screenshots
         if: always()
         run: |
@@ -143,8 +234,9 @@ jobs:
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -configuration Debug -sdk iphonesimulator \
             -derivedDataPath build/UniversalDerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build
           APP=$(find build/UniversalDerivedData/Build/Products -maxdepth 2 -name 'Supermortgage.app' -type d | head -1)
           ditto -c -k --keepParent "$APP" build/Supermortgage-simulator.app.zip
@@ -190,17 +282,34 @@ jobs:
 
   build-committed-project:
     name: Build (committed .xcodeproj, no tooling)
-    runs-on: macos-14
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 16
+      - name: Select Xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1); fi
+          echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
       - name: Pick the iPhone 15 simulator
         run: |
+          SDK_MAJOR=$(xcodebuild -showsdks -json 2>/dev/null | python3 -c '
+          import json, re, sys
+          majors = []
+          try:
+              for sdk in json.load(sys.stdin):
+                  m = re.match(r"iphonesimulator(\d+)", sdk.get("canonicalName", ""))
+                  if not m and sdk.get("platform") == "iphonesimulator":
+                      m = re.match(r"(\d+)", sdk.get("sdkVersion") or sdk.get("platformVersion") or "")
+                  if m:
+                      majors.append(int(m.group(1)))
+          except Exception:
+              pass
+          print(max(majors) if majors else "")
+          ' || true)
+          echo "iOS SDK major: ${SDK_MAJOR:-unknown}"
           UDID=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
           data = json.load(sys.stdin)["devices"]
@@ -218,19 +327,122 @@ jobs:
           if [ -z "$UDID" ]; then
             RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c '
           import json, sys
+          major = sys.argv[1]
           runtimes = [r for r in json.load(sys.stdin)["runtimes"] if r.get("platform") == "iOS" and r.get("isAvailable", False)]
           runtimes.sort(key=lambda r: tuple(int(x) for x in r["version"].split(".")))
-          print(runtimes[-1]["identifier"] if runtimes else "")
-          ')
+          matching = [r for r in runtimes if major and r["version"].split(".")[0] == major]
+          chosen = matching or runtimes
+          print(chosen[-1]["identifier"] if chosen else "")
+          ' "$SDK_MAJOR")
             echo "Creating an iPhone 15 on $RUNTIME"
             UDID=$(xcrun simctl create "iPhone 15" "com.apple.CoreSimulator.SimDeviceType.iPhone-15" "$RUNTIME")
           fi
           echo "Using simulator $UDID"
           xcrun simctl boot "$UDID" || true
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Cache the Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/project.yml') }}
+          restore-keys: ${{ runner.os }}-spm-
       - name: Build the app and both test bundles from the committed project
         run: |
           set -o pipefail
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build-for-testing
+
+  testflight:
+    # Needs the repository variable APPLE_TEAM_ID (the Apple Developer Team ID, public) and the secrets
+    # ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_P8 (the App Store Connect API key's .p8, base64-encoded:
+    # `base64 -i AuthKey_<KEY_ID>.p8`). docs/SIGNUP-FOR-REAL.md §7 and §8.
+    name: TestFlight
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && vars.APPLE_TEAM_ID != ''
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: testflight
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1); fi
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Cache the Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('ios/project.yml') }}
+          restore-keys: ${{ runner.os }}-spm-
+      - name: Write the App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_KEY_P8" | base64 --decode > "$KEY"
+          # altool looks for AuthKey_<KEY_ID>.p8 in ~/private_keys.
+          mkdir -p ~/private_keys
+          cp "$KEY" ~/private_keys/
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/Supermortgage.xcarchive \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ vars.APPLE_TEAM_ID }}" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive
+      - name: Export the .ipa
+        run: |
+          set -o pipefail
+          cat > build/ExportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>destination</key>
+          	<string>export</string>
+          	<key>method</key>
+          	<string>app-store-connect</string>
+          	<key>signingStyle</key>
+          	<string>automatic</string>
+          	<key>teamID</key>
+          	<string>${{ vars.APPLE_TEAM_ID }}</string>
+          	<key>uploadSymbols</key>
+          	<true/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath build/Supermortgage.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+          ls -la build/export
+      - name: Upload to TestFlight
+        run: |
+          xcrun altool --upload-app -f build/export/Supermortgage.ipa -t ios \
+            --apiKey "${{ secrets.ASC_KEY_ID }}" --apiIssuer "${{ secrets.ASC_ISSUER_ID }}"
+      - name: Upload the .ipa
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Supermortgage-ipa
+          path: build/export/Supermortgage.ipa
+          if-no-files-found: ignore
