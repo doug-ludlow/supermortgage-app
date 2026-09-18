@@ -51,6 +51,8 @@ struct CapsuleButtonStyle: ButtonStyle {
     var fullWidth: Bool = true
     var minHeight: CGFloat = 44
 
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .textStyle(.button)
@@ -62,6 +64,7 @@ struct CapsuleButtonStyle: ButtonStyle {
             .background(configuration.isPressed ? pressed : fill)
             .clipShape(Capsule())
             .contentShape(Capsule())
+            .opacity(isEnabled ? 1 : 0.42)
     }
 }
 

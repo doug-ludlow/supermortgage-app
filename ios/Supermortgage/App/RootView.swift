@@ -58,6 +58,8 @@ struct SheetHost: View {
     let kind: SheetKind
 
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var router: Router
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var detent: PresentationDetent
 
     init(kind: SheetKind) {
@@ -67,6 +69,15 @@ struct SheetHost: View {
 
     var body: some View {
         SheetBody(kind: kind)
+            // The toast also shows here: a sheet covers the root's copy of it.
+            .overlay(alignment: .bottom) {
+                if let text = router.toastText {
+                    Toast(text: text)
+                        .padding(.bottom, 24)
+                        .transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 8)))
+                }
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: router.toastText)
             .resolvedTokens()
             .preferredColorScheme(model.theme.colorScheme)
             .presentationDetents([.medium, .large], selection: $detent)

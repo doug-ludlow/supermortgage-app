@@ -88,7 +88,10 @@ jobs:
       - name: Generate the project
         working-directory: ios
         run: xcodegen generate
-      # Simulator builds are not signed: the Sign in with Apple entitlement would otherwise demand a team.
+      # Simulator test builds are signed ad hoc, as Xcode does by default: Firebase Auth keeps the
+      # session in the keychain, which needs the application-identifier that only a signed build has
+      # (an unsigned build fails every sign-in with a keychain error). The entitlements file is left out
+      # of these builds so no development team is needed on CI.
       - name: Unit tests
         run: |
           set -o pipefail
@@ -99,7 +102,7 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/unit.xcresult \
             -only-testing:SupermortgageTests \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
             test 2>&1 | tee build/unit-tests.log
       - name: What failed (unit tests)
         if: failure()
@@ -188,7 +191,7 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/walk.xcresult \
             -only-testing:SupermortgageUITests \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
             test 2>&1 | tee build/walk.log
       - name: What failed (the walk)
         if: failure()
@@ -199,6 +202,8 @@ jobs:
           awk "/=== accessibility hierarchy/,/=== end hierarchy ===/" build/walk.log | head -n 400 || true
           echo "===== api.log (last 60 lines) ====="
           tail -n 60 build/api.log 2>/dev/null || true
+          echo "===== emulator.log (last 40 lines) ====="
+          tail -n 40 build/emulator.log 2>/dev/null || true
           } > build/walk-failure.txt 2>&1
           cat build/walk-failure.txt
       - name: The API's and the emulator's logs
@@ -406,7 +411,7 @@ jobs:
           xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -clonedSourcePackagesDirPath build/SourcePackages \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
             build-for-testing
 
   testflight:

@@ -10,8 +10,8 @@ Requires Xcode 16.3 or later (the two Swift packages need Swift 6.1 tools; iOS 1
 
 ```sh
 open ios/Supermortgage.xcodeproj
-xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO test
+xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
 The first command opens the project (press ⌘R to run on the iPhone 15 simulator). The second builds it from the command line. The third runs the unit tests (`SupermortgageTests`) and the walk (`SupermortgageUITests`, one test that signs up with an e-mail code and taps through the whole product in the order of §8 of the spec).
