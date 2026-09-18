@@ -2,6 +2,8 @@ name: iOS
 
 on:
   push:
+    branches-ignore:
+      - screenshots
   pull_request:
 
 concurrency:
@@ -13,6 +15,8 @@ jobs:
     name: Build and test (XcodeGen project)
     runs-on: macos-14
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 16
@@ -83,6 +87,24 @@ jobs:
               head -c 60000 "$f"
               echo
             done
+            # Name the screenshots as the walk named them (01-welcome.png …) using the export manifest.
+            python3 - <<'PY'
+          import json, os, re, shutil
+          root = "build/walk-screenshots"
+          manifest = os.path.join(root, "manifest.json")
+          if not os.path.exists(manifest):
+              raise SystemExit(0)
+          out = os.path.join(root, "named")
+          os.makedirs(out, exist_ok=True)
+          for test in json.load(open(manifest)):
+              for a in test.get("attachments", []):
+                  src = os.path.join(root, a.get("exportedFileName", ""))
+                  name = a.get("suggestedHumanReadableName", "")
+                  m = re.match(r"^(\d\d-[a-z0-9-]+)_\d+_[0-9A-F-]+\.png$", name)
+                  if m and os.path.exists(src):
+                      shutil.copyfile(src, os.path.join(out, m.group(1) + ".png"))
+          print("named screenshots:", sorted(os.listdir(out)))
+          PY
           fi
       - name: Upload the walk's screenshots
         if: always()
@@ -91,6 +113,29 @@ jobs:
           name: walk-screenshots
           path: build/walk-screenshots
           if-no-files-found: ignore
+      - name: Publish the screenshots to the screenshots branch
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SRC=build/walk-screenshots/named
+          if [ ! -d "$SRC" ] || [ -z "$(ls -A "$SRC")" ]; then echo "No named screenshots"; exit 0; fi
+          rm -rf build/screenshots-branch && mkdir -p build/screenshots-branch && cd build/screenshots-branch
+          git init -q -b screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp ../walk-screenshots/named/*.png .
+          {
+            echo "# Walk screenshots"
+            echo
+            echo "Taken by the walk (\`SupermortgageUITests\`) on the iPhone 15 simulator, commit \`${GITHUB_SHA::7}\`. The last four are in dark mode."
+            echo
+            for f in $(ls *.png | sort); do echo "## ${f%.png}"; echo; echo "![${f%.png}](./$f)"; echo; done
+          } > README.md
+          git add -A
+          git commit -q -m "Walk screenshots for ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
+          echo "Browse them at https://github.com/${GITHUB_REPOSITORY}/tree/screenshots"
       - name: Build a universal simulator app (arm64 + x86_64, for Appetize.io)
         if: always()
         run: |

@@ -28,6 +28,10 @@ To run only the walk:
 xcodebuild -project ios/Supermortgage.xcodeproj -scheme Supermortgage -destination 'platform=iOS Simulator,name=iPhone 15' test -only-testing:SupermortgageUITests
 ```
 
+## Screenshots
+
+Every green run on `main` publishes the walk's screenshots, one per screen (the last four in dark mode), to the [`screenshots` branch](https://github.com/doug-ludlow/supermortgage-app/tree/screenshots), where they can be viewed directly on GitHub.
+
 ## Viewing it in a browser (Appetize.io)
 
 Every CI run builds a universal simulator app (`Supermortgage-simulator-app`, an artifact on the run page). Two ways to run it in a browser on [Appetize.io](https://appetize.io):
