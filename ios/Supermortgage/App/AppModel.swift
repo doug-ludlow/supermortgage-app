@@ -875,6 +875,11 @@ final class AppModel: ObservableObject {
         router.dismiss()
         run { [weak self] in
             guard let self else { return }
+            // Nothing on the server without a session: a local wipe, as the shell always did.
+            guard self.session.isSignedIn else {
+                self.reset()
+                return
+            }
             do {
                 var code: String?
                 if self.session.user?.usedApple == true {

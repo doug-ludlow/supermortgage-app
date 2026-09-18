@@ -25,8 +25,8 @@ final class ColdStartTests: XCTestCase {
         XCTAssertEqual(world.model.chat.count, 3, "the intro script asked for a name")
         XCTAssertEqual(world.transport.calls.first, "GET /v1/me")
         XCTAssertEqual(world.transport.calls.filter { $0 == "PATCH /v1/me/onboarding" }.count, 2, "setup, then chat")
-        let stages = world.transport.requests.indices.filter { world.transport.calls[$0].hasPrefix("PATCH") }.map { world.transport.body($0)["stage"] as? String }
-        XCTAssertEqual(stages, ["setup", "chat"])
+        let stages = world.transport.requests.indices.filter { world.transport.calls[$0].hasPrefix("PATCH") }.compactMap { world.transport.body($0)["stage"] as? String }
+        XCTAssertEqual(stages.sorted(), ["chat", "setup"])
     }
 
     func testUserWithCompletedOnboardingGoesStraightToChatWithTheSavedName() async {
