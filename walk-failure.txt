@@ -1,0 +1,5 @@
+grep: build/walk.log: No such file or directory
+awk: can't open file build/walk.log
+ source line number 1
+===== api.log (last 60 lines) =====
+===== emulator.log (last 40 lines) =====
