@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supermortgage demo stage</title>
+<style>
+  /* A 1920×1080 stage: captions on the left, the prototype in a phone on the right (a 390×844 screen at 1.1). */
+  :root {
+    --paper: #fcfcfc; --text: #151516; --muted: #6b6b70; --accent: #bf242b; --line: #e6e6e8; --font: Inter, -apple-system, system-ui, "Helvetica Neue", sans-serif;
+  }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--paper); font-family: var(--font); color: var(--text); }
+  .stage { position: relative; width: 1920px; height: 1080px; }
+  .glow { position: absolute; left: 1040px; top: -320px; width: 1520px; height: 1520px; border-radius: 50%;
+          background: radial-gradient(closest-side, rgba(191,36,43,.10), rgba(191,36,43,0)); }
+  .copy { position: absolute; left: 144px; top: 0; width: 940px; height: 1080px; display: flex; flex-direction: column; justify-content: center; }
+  .mark { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-style: italic; font-weight: 400;
+          font-size: 128px; line-height: 1; color: var(--accent); letter-spacing: -0.02em; margin: 0 0 44px -4px; }
+  .title { font-size: 80px; line-height: 1.12; font-weight: 600; letter-spacing: -0.022em; margin: 0; max-width: 920px;
+           transition: opacity .28s ease, transform .28s ease; }
+  .sub { font-size: 38px; line-height: 1.4; color: var(--muted); margin: 28px 0 0; max-width: 880px; transition: opacity .28s ease .04s, transform .28s ease .04s; }
+  .fade-out .title, .fade-out .sub { opacity: 0; transform: translateY(12px); }
+  .foot { position: absolute; left: 144px; bottom: 68px; font-size: 24px; color: var(--muted); letter-spacing: .01em; }
+  .chapters { position: absolute; left: 144px; bottom: 120px; display: flex; gap: 12px; }
+  .chapters i { display: block; width: 36px; height: 6px; border-radius: 4px; background: var(--line); transition: background .3s; }
+  .chapters i.on { background: var(--accent); }
+
+  .phone { position: absolute; left: 1236px; top: 56px; width: 453px; height: 952.4px; border-radius: 68px; background: #0c0c0d;
+           box-shadow: 0 60px 120px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.12), inset 0 0 0 3px #3a3a3c; }
+  .phone .btn { position: absolute; background: #2c2c2e; border-radius: 4px; }
+  .phone .btn.mute { left: -5px; top: 156px; width: 5px; height: 32px; }
+  .phone .btn.vol1 { left: -5px; top: 216px; width: 5px; height: 60px; }
+  .phone .btn.vol2 { left: -5px; top: 292px; width: 5px; height: 60px; }
+  .phone .btn.power { right: -5px; top: 240px; width: 5px; height: 92px; }
+  .screen { position: absolute; left: 12px; top: 12px; width: 429px; height: 928.4px; border-radius: 56px; overflow: hidden; background: #fcfcfc; }
+  .screen iframe { position: absolute; left: 0; top: 0; width: 390px; height: 844px; border: 0; transform: scale(1.1); transform-origin: 0 0; background: #fcfcfc; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="copy" id="copy">
+    <div class="mark">s</div>
+    <h1 class="title" id="title"></h1>
+    <p class="sub" id="sub"></p>
+  </div>
+  <div class="chapters" id="chapters"></div>
+  <div class="foot">Fictional data only.</div>
+  <div class="phone">
+    <div class="btn mute"></div><div class="btn vol1"></div><div class="btn vol2"></div><div class="btn power"></div>
+    <div class="screen">
+      <iframe id="phone" name="phone" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+<script>
+  // Driven by record.mjs through page.evaluate.
+  const chapters = [];
+  window.stage = {
+    load(src) { document.getElementById('phone').src = src; },
+    caption(title, sub) {
+      const copy = document.getElementById('copy');
+      copy.classList.add('fade-out');
+      return new Promise((resolve) => setTimeout(() => {
+        document.getElementById('title').textContent = title;
+        document.getElementById('sub').textContent = sub || '';
+        copy.classList.remove('fade-out');
+        setTimeout(resolve, 320);
+      }, 300));
+    },
+    chapters(n) {
+      const c = document.getElementById('chapters'); c.innerHTML = '';
+      for (let i = 0; i < n; i++) { const el = document.createElement('i'); c.appendChild(el); chapters.push(el); }
+    },
+    chapter(i) { chapters.forEach((el, k) => el.classList.toggle('on', k <= i)); },
+    dark() {},
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "supermortgage-demo",
+  "private": true,
+  "type": "module",
+  "description": "Records the website demo of the app from the HTML prototype (stage.html + record.mjs). Needs ffmpeg on the PATH.",
+  "scripts": {
+    "record": "node record.mjs",
+    "record:16x9": "node record.mjs --only 16x9",
+    "record:9x16": "node record.mjs --only 9x16"
+  },
+  "dependencies": {
+    "playwright": "^1.56.1"
+  }
+}
